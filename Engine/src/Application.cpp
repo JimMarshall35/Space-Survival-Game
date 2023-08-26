@@ -43,6 +43,7 @@ void Application::Run()
 	glfwGetFramebufferSize(window, &screen_width, &screen_height);
 	glViewport(0, 0, screen_width, screen_height);
 
+	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
 
@@ -54,6 +55,9 @@ void Application::Run()
 	{
 		glfwPollEvents();
 
+		glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
@@ -63,6 +67,9 @@ void Application::Run()
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+		int display_w, display_h;
+		glfwGetFramebufferSize(window, &display_w, &display_h);
+		glViewport(0, 0, display_w, display_h);
 		glfwSwapBuffers(window);
 	}
 
