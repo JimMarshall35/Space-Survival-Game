@@ -2,11 +2,11 @@ local ProjectName = _ARGS[1]
 
 workspace(ProjectName)
 	architecture "x64"
-	startproject "Editor"
+	startproject "Game"
 	configurations { "Debug", "Release" }
 
-project "Editor"
-	location "Editor"
+project "Game"
+	location "Game"
 	kind "ConsoleApp"
 	language "C++"
 	cppdialect "C++17"
@@ -19,8 +19,8 @@ project "Editor"
 		"glfw"
 	}
 
-	targetdir "Bin/Editor/%{cfg.buildcfg}/%{cfg.platform}"
-	objdir "Bin/Intermediate/Editor/%{cfg.buildcfg}/%{cfg.platform}"
+	targetdir "Bin/Game/%{cfg.buildcfg}/%{cfg.platform}"
+	objdir "Bin/Intermediate/Game/%{cfg.buildcfg}/%{cfg.platform}"
 
 	files
 	{
@@ -108,8 +108,8 @@ project "Engine"
 
 	postbuildcommands
 	{
-		"{MKDIR} \"%{wks.location}Bin/Editor/%{cfg.buildcfg}/%{cfg.platform}\"",
-		"{COPYFILE} \"%{wks.location}Bin/Engine/%{cfg.buildcfg}/%{cfg.platform}/%{cfg.buildtarget.basename}%{cfg.buildtarget.extension}\" \"%{wks.location}Bin/Editor/%{cfg.buildcfg}/%{cfg.platform}\"",
+		"{MKDIR} \"%{wks.location}Bin/Game/%{cfg.buildcfg}/%{cfg.platform}\"",
+		"{COPYFILE} \"%{wks.location}Bin/Engine/%{cfg.buildcfg}/%{cfg.platform}/%{cfg.buildtarget.basename}%{cfg.buildtarget.extension}\" \"%{wks.location}Bin/Game/%{cfg.buildcfg}/%{cfg.platform}\"",
 		"rd /s /q $(SolutionDir)x64"
 	}
 
@@ -147,7 +147,7 @@ newaction {
 		
 		-- Specific files with extensions
         local filesToDelete = {
-            "Editor/Editor.vcxproj",
+            "Game/Game.vcxproj",
             "Engine/Engine.vcxproj",
             "Engine/Engine.vcxproj.filters"
             -- Add more file paths here
