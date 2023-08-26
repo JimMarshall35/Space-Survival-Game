@@ -130,13 +130,13 @@ project "Engine"
 		runtime "Release"
 
 externalproject "glfw"
-	location ("%{wks.location}" .. ProjectName .. "\\vendor\\glfw\\build\\src")
+	location ("%{wks.location}\\vendor\\glfw\\build\\src")
 	uuid "F70CFA3B-BFC4-3B3F-B758-519FB418430D"
 	kind "StaticLib"
 	language "C++"
 	
 externalproject "ZERO_CHECK"
-	location ("%{wks.location}" .. ProjectName .. "\\vendor\\glfw\\build")
+	location ("%{wks.location}\\vendor\\glfw\\build")
 	uuid "FC96CD67-3228-3471-843D-D7756AE336C1"
 	kind "None"
 	
