@@ -16,11 +16,13 @@ project "Game"
 	dependson
 	{
 		"Engine",
-		"glfw"
+		"glad",
+		"glfw",
+		"ImGui",
 	}
 
-	targetdir "Bin/Game/%{cfg.buildcfg}/%{cfg.platform}"
-	objdir "Bin/Intermediate/Game/%{cfg.buildcfg}/%{cfg.platform}"
+	targetdir "Bin/%{prj.name}/%{cfg.buildcfg}/%{cfg.platform}"
+	objdir "Bin/Intermediate/%{prj.name}/%{cfg.buildcfg}/%{cfg.platform}"
 
 	files
 	{
@@ -36,19 +38,26 @@ project "Game"
 	externalincludedirs
 	{
 		"%{prj.name}/../Engine/include",
+		"vendor\\glad\\include",
 		"vendor\\glfw\\include",
+		"vendor\\imgui",
+		"vendor\\imgui\\backends",
 	}
 
 	libdirs
 	{
 		"Bin\\Engine\\%{cfg.buildcfg}\\%{cfg.platform}",
+		"vendor\\glad\\lib\\%{cfg.buildcfg}\\%{cfg.platform}",
 		"vendor\\glfw\\build\\src\\%{cfg.buildcfg}",
+		"vendor\\imgui\\lib\\%{cfg.buildcfg}\\%{cfg.platform}",
 	}
 
 	links
 	{
 		"Engine.lib",
+		"glad.lib",
 		"glfw3.lib",
+		"imgui.lib",
 	}
 
 	filter "configurations:Debug"
@@ -73,11 +82,13 @@ project "Engine"
 	
 	dependson
 	{
-		"glfw"
+		"glad",
+		"glfw",
+		"ImGui",
 	}
 	
-	targetdir "Bin/Engine/%{cfg.buildcfg}/%{cfg.platform}"
-	objdir "Bin/Intermediate/Engine/%{cfg.buildcfg}/%{cfg.platform}"
+	targetdir "Bin/%{prj.name}/%{cfg.buildcfg}/%{cfg.platform}"
+	objdir "Bin/Intermediate/%{prj.name}/%{cfg.buildcfg}/%{cfg.platform}"
 	
 	files
 	{
@@ -92,18 +103,25 @@ project "Engine"
 
 	externalincludedirs
 	{
+		"vendor\\glad\\include",
 		"vendor\\glfw\\include",
+		"vendor\\imgui",
+		"vendor\\imgui\\backends",
 	}
 
 	libdirs
 	{
+		"vendor\\glad\\lib\\%{cfg.buildcfg}\\%{cfg.platform}",
 		"vendor\\glfw\\build\\src\\%{cfg.buildcfg}",
+		"vendor\\imgui\\lib\\%{cfg.buildcfg}\\%{cfg.platform}",
 	}
 	
 	links
 	{
 		"opengl32.lib",
-		"glfw3.lib"
+		"glad.lib",
+		"glfw3.lib",
+		"imgui.lib",
 	}
 
 	postbuildcommands
@@ -123,6 +141,69 @@ project "Engine"
 		optimize "On"
 		runtime "Release"
 
+project "ImGui"
+	location "vendor/imgui"
+	kind "StaticLib"
+	language "C++"
+	cppdialect "C++17"
+	staticruntime "on"
+	systemversion "latest"
+
+	targetdir "/%{prj.location}/lib/%{cfg.buildcfg}/%{cfg.platform}"
+	objdir "/%{prj.location}/lib/Intermediate/%{cfg.buildcfg}/%{cfg.platform}"
+
+	includedirs
+	{
+		"%{prj.location}"
+	}
+	
+	externalincludedirs
+	{
+		"vendor\\glfw\\include"
+	}
+
+	files
+	{
+		"%{prj.location}/imconfig.h",
+		"%{prj.location}/imgui.h",
+		"%{prj.location}/imgui.cpp",
+		"%{prj.location}/imgui_demo.cpp",
+		"%{prj.location}/imgui_draw.cpp",
+		"%{prj.location}/imgui_internal.h",
+		"%{prj.location}/imgui_tables.cpp",
+		"%{prj.location}/imgui_widgets.cpp",
+		"%{prj.location}/imstb_rectpack.h",
+		"%{prj.location}/imstb_textedit.h",
+		"%{prj.location}/imstb_truetype.h",
+		"%{prj.location}/backends/imgui_impl_glfw.h",
+		"%{prj.location}/backends/imgui_impl_glfw.cpp",
+		"%{prj.location}/backends/imgui_impl_opengl3.h",
+		"%{prj.location}/backends/imgui_impl_opengl3.cpp",		
+	}
+	
+project "glad"
+	location "vendor/glad"
+	kind "StaticLib"
+	language "C++"
+	cppdialect "C++17"
+	staticruntime "on"
+	systemversion "latest"
+
+	targetdir "/%{prj.location}/lib/%{cfg.buildcfg}/%{cfg.platform}"
+	objdir "/%{prj.location}/lib/Intermediate/%{cfg.buildcfg}/%{cfg.platform}"
+
+	externalincludedirs
+	{
+		"%{prj.location}/include"
+	}
+
+	files
+	{
+		"%{prj.location}/include/glad/glad.h",
+		"%{prj.location}/include/KHR/khrplatform.h",
+		"%{prj.location}/src/glad.c",
+	}
+	
 project "AllocatorTest"
 	location "AllocatorTest"
 	kind "ConsoleApp"
@@ -198,11 +279,18 @@ newaction {
             os.remove(slnFile)
         end
 		
+		-- Project files
+		for _, slnFile in ipairs(os.matchfiles("*.vcxproj")) do
+            os.remove(slnFile)
+        end
+		
+		-- Project filter files
+		for _, slnFile in ipairs(os.matchfiles("*.vcxproj.filters")) do
+            os.remove(slnFile)
+        end
+		
 		-- Specific files with extensions
         local filesToDelete = {
-            "Game/Game.vcxproj",
-            "Engine/Engine.vcxproj",
-            "Engine/Engine.vcxproj.filters"
             -- Add more file paths here
         }
 		for _, filePath in ipairs(filesToDelete) do
@@ -212,7 +300,8 @@ newaction {
 		-- Specific directories
         local directoriesToDelete = {
 			"Bin",
-            "vendor/glfw/build"			
+            "vendor/glfw/build",
+			"vendor/imgui/lib",
             -- Add more file paths here
         }
 		for _, directoryPath in ipairs(directoriesToDelete) do

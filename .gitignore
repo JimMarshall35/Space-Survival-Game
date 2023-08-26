@@ -43,4 +43,9 @@ CMakeCache.txt
 # Folders
 .vs/
 bin/
+Debug/
+Release/
+x64/
+x86/
+enc_temp_folder
 CMakeFiles
