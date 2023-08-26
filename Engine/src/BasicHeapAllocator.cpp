@@ -188,6 +188,7 @@ void* BasicHeap::Malloc(size_t size)
 			onBlock->Capacity = ROUND_UP(onBlock->CurrentSize, Alignment);
 
 			BasicHeapBlockHeader* newBlock = AddNewMemoryBlock(availableBytes, onBlock->Next, onBlock, true, writeStartPtr);
+			newBlock->CurrentSize = 0; // new block is empty
 		}
 		return onBlock->Data;
 	}
@@ -245,11 +246,11 @@ void BasicHeap::Free(BasicHeapBlockHeader* block)
 	
 	block->bDataIsFree = true;
 	block->CurrentSize = 0;
-	if (block->Next->bDataIsFree)
+	if (block->Next && block->Next->bDataIsFree)
 	{
 		MergeFreeBlocks(block, block->Next);
 	}
-	if (block->Previous->bDataIsFree)
+	if (block->Previous && block->Previous->bDataIsFree)
 	{
 		MergeFreeBlocks(block->Previous, block);
 	}

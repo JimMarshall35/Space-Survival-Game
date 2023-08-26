@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <variant>
 
 enum TestCmdType
 {
@@ -23,16 +24,19 @@ struct ReallocData
 	u32 AllocationIndex;
 	u32 NewSize;
 };
-union TestCmdData {
-	u32 UnsignedInt;
-	ReallocData ReallocData;
-	std::vector<size_t> Sizes;
-	std::vector<bool> AreFree;
-};
+
+typedef std::variant < u32, ReallocData, std::vector<size_t>, std::vector<bool>> TestCmdData;
 struct TestCmd
 {
 	TestCmdType type;
 	TestCmdData Data;
+};
+
+struct TestProgram
+{
+	std::string TestName;
+	u32 HeapSize;
+	std::vector<TestCmd> Commands;
 };
 
 class BasicHeapAllocatorTestHarness
@@ -52,24 +56,25 @@ private:
 public:
 
 
-	static bool DoTestProgram(const std::vector<TestCmd>& program, BasicHeap& heap, std::string& errorMsg)
+	static bool DoTestProgram(const TestProgram& program, BasicHeap& heap, std::string& errorMsg)
 	{
 		std::stringstream error;
 		bool testSuccess = true;
 		std::vector<void*> allocations;
 		int onCmdIndex = 0;
-		for (const TestCmd& cmd : program)
+		std::cout << "Running test: " << program.TestName << "\n";
+		for (const TestCmd& cmd : program.Commands)
 		{
 			switch (cmd.type)
 			{
 			case Malloc:
 				{
-					allocations.push_back(heap.Malloc(cmd.Data.UnsignedInt));
+					allocations.push_back(heap.Malloc(std::get<u32>(cmd.Data)));//cmd.Data.UnsignedInt));
 				}
 				break; 
 			case Free:
 				{
-					u32 index = cmd.Data.UnsignedInt;
+					u32 index = std::get<u32>(cmd.Data);
 					if (index < allocations.size())
 					{
 						heap.Free(allocations[index]);
@@ -84,7 +89,7 @@ public:
 				break; 
 			case Realloc:
 				{
-					ReallocData reallocData = cmd.Data.ReallocData;
+					ReallocData reallocData = std::get<ReallocData>(cmd.Data);
 					if (reallocData.AllocationIndex < allocations.size())
 					{
 						void* ptr = allocations[reallocData.AllocationIndex];
@@ -107,11 +112,11 @@ public:
 			case VerifyNumBlocks:
 				{
 					int i = CountBlocks(heap);
-					if (i != cmd.Data.UnsignedInt)
+					if (i != std::get<u32>(cmd.Data))
 					{
 						testSuccess = false;
 						error << "cmd " << onCmdIndex << "\n";
-						error << "expected size " << cmd.Data.UnsignedInt << " does not equal actual size " << i << "\n";
+						error << "expected size " << std::get<u32>(cmd.Data) << " does not equal actual size " << i << "\n";
 					}
 				}
 				break;
@@ -119,7 +124,7 @@ public:
 				{
 					int i = 0;
 					BasicHeapBlockHeader* onBlock = heap.BlocksListHead;
-					const std::vector<size_t>& expectedSizes = cmd.Data.Sizes;
+					const std::vector<size_t>& expectedSizes = std::get<std::vector<size_t>>(cmd.Data);
 
 					while (onBlock)
 					{
@@ -146,7 +151,7 @@ public:
 				{
 					int i = 0;
 					BasicHeapBlockHeader* onBlock = heap.BlocksListHead;
-					const std::vector<size_t>& expectedSizes = cmd.Data.Sizes;
+					const std::vector<size_t>& expectedSizes = std::get<std::vector<size_t>>(cmd.Data);
 
 					while (onBlock)
 					{
@@ -173,7 +178,7 @@ public:
 				{
 					int i = 0;
 					BasicHeapBlockHeader* onBlock = heap.BlocksListHead;
-					const std::vector<bool>& expectedIsFree = cmd.Data.AreFree;
+					const std::vector<bool>& expectedIsFree = std::get<std::vector<bool>>(cmd.Data);
 
 					while (onBlock)
 					{
@@ -204,35 +209,103 @@ public:
 	}
 };
 
-
-void Test1()
+void RunTestPrograms(const std::vector<TestProgram>& programs)
 {
-	BasicHeap heap(1024, "test heap");
-	void* a1 = heap.Malloc(32);
-	void* a2 = heap.Malloc(256);
-	void* a3 = heap.Malloc(21);
-	void* a4 = heap.Malloc(32);
-	//memset(a1, '1', 32);
-	//memset(a2, '2', 42);
-	//memset(a3, '3', 21);
-	//memset(a4, '4', 32);
-	heap.DebugPrintAllBlocks();
-	heap.Free(a2);
-	heap.DebugPrintAllBlocks();
-	void* a5 = heap.Malloc(6);
-	heap.DebugPrintAllBlocks();
-	heap.Free(a3);
-	heap.DebugPrintAllBlocks();
-	
-	// Can't instantiate TestCmd?! deleted function bullshit.
-	// todo: try use std::variant - think problem is that a union member is std::vector
-	/*std::vector<TestCmd> testProgram;
-	TestCmd t = { Malloc, 32 };
-	testProgram.push_back(t);*/
+	std::vector<std::string> failedTests;
+	for (const TestProgram& prog : programs)
+	{
+		std::string error;
+		BasicHeap heap(prog.HeapSize, prog.TestName);
+		if (BasicHeapAllocatorTestHarness::DoTestProgram(prog, heap, error))
+		{
+			std::cout << "test succeeded\n";
+		}
+		else
+		{
+			failedTests.push_back(prog.TestName);
+			std::cout << "test failed\n";
+			std::cout << error;
+		}
+	}
+	if (failedTests.size() > 0)
+	{
+		std::cout << "Some tests failed: \n";
+		for (const std::string& testName : failedTests)
+		{
+			std::cout << "\t" << testName << "\n";
+		}
+	}
+}
+
+std::vector<TestProgram> gTestPrograms;
+
+#define PROGRAM(name, heapSize) gTestPrograms.push_back(TestProgram{name, heapSize})
+
+void CMD(TestCmdType type, u32 data)
+{
+	gTestPrograms[gTestPrograms.size() - 1].Commands.push_back(TestCmd{ type, data });
+}
+
+void CMD(TestCmdType type, const std::vector<size_t>& data)
+{
+	TestCmd cmd;
+	cmd.type = type;
+	std::vector<size_t> vec;// = std::get<std::vector<size_t>>(cmd.Data);
+	cmd.Data.emplace<2>(data);
+	gTestPrograms[gTestPrograms.size() - 1].Commands.push_back(cmd);
+}
+
+#define PRINT gTestPrograms[gTestPrograms.size() - 1].Commands.push_back(TestCmd{Print})
+
+void BuildProgramList()
+{
+	PROGRAM("test1 - correct number of blocks", 1024);
+		CMD(Malloc, 32);
+		CMD(Malloc, 256);
+		CMD(Malloc, 21);
+		CMD(Malloc, 32);
+		//PRINT;
+		CMD(VerifyNumBlocks, 4);
+		CMD(Free, 1);
+		//PRINT;
+		CMD(VerifyNumBlocks, 4);
+		CMD(Malloc, 6);
+		CMD(VerifyNumBlocks, 5);
+		CMD(Free, 2);
+		CMD(VerifyNumBlocks, 4);
+		//PRINT;
+
+	PROGRAM("test2 - correct capacities of blocks", 1024);
+		CMD(Malloc, 32);
+		CMD(Malloc, 256);
+		CMD(Malloc, 21);
+		CMD(Malloc, 32);
+		CMD(VerifyBlockCapacities, { ROUND_UP(32,Alignment), ROUND_UP(256,Alignment), ROUND_UP(21,Alignment), ROUND_UP(32,Alignment) });
+		CMD(Free, 1);
+		CMD(VerifyBlockCapacities, { ROUND_UP(32,Alignment), ROUND_UP(256,Alignment), ROUND_UP(21,Alignment), ROUND_UP(32,Alignment) });
+		CMD(Malloc, 6);
+		CMD(VerifyBlockCapacities, { ROUND_UP(32,Alignment), ROUND_UP(6,Alignment), ROUND_UP(256,Alignment) - ROUND_UP(6,Alignment) - sizeof(BasicHeapBlockHeader), ROUND_UP(21,Alignment), ROUND_UP(32,Alignment) });
+		CMD(Free, 2);
+		CMD(VerifyBlockCapacities, { ROUND_UP(32,Alignment), ROUND_UP(6, Alignment), ROUND_UP(256,Alignment) - ROUND_UP(6, Alignment) - sizeof(BasicHeapBlockHeader) + ROUND_UP(21,Alignment), ROUND_UP(32,Alignment) });
+
+	PROGRAM("test3 - correct sizes of blocks", 1024);
+		CMD(Malloc, 32);
+		CMD(Malloc, 256);
+		CMD(Malloc, 21);
+		CMD(Malloc, 32);
+		CMD(VerifyBlockCurrentSizes, {32, 256, 21, 32});
+		CMD(Free, 1);
+		CMD(VerifyBlockCurrentSizes, {32, 0, 21, 32});
+		CMD(Malloc, 6);
+		CMD(VerifyBlockCurrentSizes, {32, 6, 0, 21, 32});
+		CMD(Free, 2);
+		CMD(VerifyBlockCurrentSizes, {32, 6, 0, 32});
 
 }
+
 int main()
 {
-	Test1();
+	BuildProgramList();
+	RunTestPrograms(gTestPrograms);
 	return 0;
 }
