@@ -13,6 +13,13 @@ project "Game"
 	staticruntime "on"
 	systemversion "latest"
 
+	defines
+	{
+		"GLM_FORCE_SWIZZLE",
+		"GLM_FORCE_RADIANS",
+		"GLM_ENABLE_EXPERIMENTAL",
+	}
+
 	dependson
 	{
 		"Engine",
@@ -42,6 +49,7 @@ project "Game"
 		"vendor\\glfw\\include",
 		"vendor\\imgui",
 		"vendor\\imgui\\backends",
+		"vendor\\glm\\glm",
 	}
 
 	libdirs
@@ -78,7 +86,14 @@ project "Engine"
 	cppdialect "C++17"
 	staticruntime "off"
 	systemversion "latest"
-	defines { "BUILD_DLL" }
+	
+	defines
+	{
+		"BUILD_DLL",
+		"GLM_FORCE_SWIZZLE",
+		"GLM_FORCE_RADIANS",
+		"GLM_ENABLE_EXPERIMENTAL",
+	}
 	
 	dependson
 	{
@@ -107,6 +122,7 @@ project "Engine"
 		"vendor\\glfw\\include",
 		"vendor\\imgui",
 		"vendor\\imgui\\backends",
+		"vendor\\glm\\glm",
 	}
 
 	libdirs
