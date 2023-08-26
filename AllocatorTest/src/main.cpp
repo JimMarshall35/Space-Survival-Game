@@ -207,26 +207,28 @@ public:
 
 void Test1()
 {
-	//BasicHeap heap(1024, "test heap");
-	//void* a1 = heap.Malloc(32);
-	//void* a2 = heap.Malloc(256);
-	//void* a3 = heap.Malloc(21);
-	//void* a4 = heap.Malloc(32);
-	////memset(a1, '1', 32);
-	////memset(a2, '2', 42);
-	////memset(a3, '3', 21);
-	////memset(a4, '4', 32);
-	//heap.DebugPrintAllBlocks();
-	//heap.Free(a2);
-	//heap.DebugPrintAllBlocks();
-	//void* a5 = heap.Malloc(6);
-	//heap.DebugPrintAllBlocks();
-	//heap.Free(a3);
-	//heap.DebugPrintAllBlocks();
+	BasicHeap heap(1024, "test heap");
+	void* a1 = heap.Malloc(32);
+	void* a2 = heap.Malloc(256);
+	void* a3 = heap.Malloc(21);
+	void* a4 = heap.Malloc(32);
+	//memset(a1, '1', 32);
+	//memset(a2, '2', 42);
+	//memset(a3, '3', 21);
+	//memset(a4, '4', 32);
+	heap.DebugPrintAllBlocks();
+	heap.Free(a2);
+	heap.DebugPrintAllBlocks();
+	void* a5 = heap.Malloc(6);
+	heap.DebugPrintAllBlocks();
+	heap.Free(a3);
+	heap.DebugPrintAllBlocks();
 	
-	std::vector<TestCmd> testProgram;
+	// Can't instantiate TestCmd?! deleted function bullshit.
+	// todo: try use std::variant - think problem is that a union member is std::vector
+	/*std::vector<TestCmd> testProgram;
 	TestCmd t = { Malloc, 32 };
-	testProgram.push_back(t);
+	testProgram.push_back(t);*/
 
 }
 int main()
