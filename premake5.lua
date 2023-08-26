@@ -37,21 +37,18 @@ project "Editor"
 	{
 		"%{prj.name}/../Engine/include",
 		"vendor\\glfw\\include",
-		"vendor\\glew\\include"
 	}
 
 	libdirs
 	{
 		"Bin\\Engine\\%{cfg.buildcfg}\\%{cfg.platform}",
 		"vendor\\glfw\\build\\src\\%{cfg.buildcfg}",
-		"vendor\\glew\\lib\\Release\\x64"
 	}
 
 	links
 	{
 		"Engine.lib",
 		"glfw3.lib",
-		"glew32.lib"
 	}
 
 	filter "configurations:Debug"
@@ -96,19 +93,16 @@ project "Engine"
 	externalincludedirs
 	{
 		"vendor\\glfw\\include",
-		"vendor\\glew\\include"
 	}
 
 	libdirs
 	{
 		"vendor\\glfw\\build\\src\\%{cfg.buildcfg}",
-		"vendor\\glew\\lib\\Release\\x64"
 	}
 	
 	links
 	{
 		"opengl32.lib",
-		"glew32.lib",
 		"glfw3.lib"
 	}
 
