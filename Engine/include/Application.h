@@ -22,13 +22,17 @@ protected:
 
 
 private:
+	static void FrameBufferSizeChangedCallback(GLFWwindow* window, int width, int height);
+
+private:
+
 	GLFWwindow* Window;
 
-	int ScreenWidth;
-	int ScreenHeight;
+	static int ScreenWidth;
+	static int ScreenHeight;
 
 	glm::mat4 CameraMatrix;
-	glm::mat4 ProjectionMatrix;
+	static glm::mat4 ProjectionMatrix;
 	glm::mat4 ViewMatrix;
 
 	bool CubeOptionsOpen;
@@ -36,4 +40,9 @@ private:
 	int CubeX = 0;
 	int CubeY = 0;
 	int CubeZ = 0;
+
+	static float FOV;
+	static float Aspect;
+	static float Near;
+	static float Far;
 };

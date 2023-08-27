@@ -7,6 +7,13 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <ext.hpp>
+int Application::ScreenWidth = 1280;
+int Application::ScreenHeight = 720;
+glm::mat4 Application::ProjectionMatrix;
+float Application::FOV;
+float Application::Aspect;
+float Application::Near;
+float Application::Far;
 
 Application::Application()
 {
@@ -18,9 +25,6 @@ Application::Application()
 	const char* glsl_version = "#version 130";
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-
-	ScreenWidth = 1280;
-	ScreenHeight = 720;
 
 	// Create Window with graphics context
 	Window = glfwCreateWindow(ScreenWidth, ScreenHeight, "SPACE GAME", NULL, NULL);
@@ -37,6 +41,9 @@ Application::Application()
 	glfwGetFramebufferSize(Window, &screen_width, &screen_height);
 	glViewport(0, 0, screen_width, screen_height);
 
+	glfwSetFramebufferSizeCallback(Window, FrameBufferSizeChangedCallback);
+
+
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
@@ -52,7 +59,12 @@ Application::Application()
 	CameraMatrix = glm::inverse(glm::lookAt(glm::vec3(50, 50, 50), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)));
 
 	// create a perspective projection matrix with a 90 degree field-of-view and widescreen aspect ratio
-	ProjectionMatrix = glm::perspective(glm::pi<float>() * 0.25f, (float)ScreenHeight / (float)ScreenHeight, 0.1f, 1000.0f);
+	FOV = glm::pi<float>() * 0.25f;
+	Near = 0.1f;
+	Far = 1000.0f;
+	Aspect = (float)ScreenWidth / (float)ScreenHeight;
+
+	ProjectionMatrix = glm::perspective(FOV, Aspect, Near, Far);
 
 	CubeX = 0;
 	CubeY = 0;
@@ -207,4 +219,12 @@ void Application::Run()
 
 		glfwSwapBuffers(Window);
 	}
+}
+
+void Application::FrameBufferSizeChangedCallback(GLFWwindow* window, int width, int height)
+{
+	Aspect = (float)ScreenWidth / (float)ScreenHeight;
+	ProjectionMatrix = glm::perspective(FOV, Aspect, Near, Far);
+	ScreenWidth = width;
+	ScreenHeight = height;
 }
