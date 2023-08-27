@@ -166,12 +166,12 @@ void Gizmos::AddBox(const glm::vec3& center,
 	AddLine(vVerts[1], vVerts[2], vWhite, vWhite);
 	AddLine(vVerts[2], vVerts[3], vWhite, vWhite);
 	AddLine(vVerts[3], vVerts[0], vWhite, vWhite);
-
+	
 	AddLine(vVerts[4], vVerts[5], vWhite, vWhite);
 	AddLine(vVerts[5], vVerts[6], vWhite, vWhite);
 	AddLine(vVerts[6], vVerts[7], vWhite, vWhite);
 	AddLine(vVerts[7], vVerts[4], vWhite, vWhite);
-
+	
 	AddLine(vVerts[0], vVerts[4], vWhite, vWhite);
 	AddLine(vVerts[1], vVerts[5], vWhite, vWhite);
 	AddLine(vVerts[2], vVerts[6], vWhite, vWhite);

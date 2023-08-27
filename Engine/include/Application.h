@@ -16,6 +16,8 @@ public:
 
 	void FreeCameraMovement(glm::mat4& transform, float deltaTime, float speed, const glm::vec3& worldUp = glm::vec3(0, 1, 0));
 
+	void DrawGrid();
+
 	void Run();
 
 protected:

@@ -175,6 +175,23 @@ void Application::FreeCameraMovement(glm::mat4& transform, float deltaTime, floa
 	}
 }
 
+void Application::DrawGrid()
+{
+	int32_t squares = 25;
+	float spacing = 2.f;
+
+	for (int32_t i = -squares; i <= squares; ++i)
+	{
+		glm::vec3 start = glm::vec3(i, 0, squares) * spacing;
+		glm::vec3 end = glm::vec3(i, 0, -squares) * spacing;
+
+		glm::vec4 colour(1.f, 1.f, 1.f, 1.f);
+
+		Gizmos::AddLine(start, end, colour);
+		Gizmos::AddLine(start.zyx, end.zyx, colour);
+	}
+}
+
 void Application::Run()
 {
 	while (!glfwWindowShouldClose(Window))
@@ -197,6 +214,8 @@ void Application::Run()
 			glm::vec3(1, 1, 1),
 			true
 		);
+
+		DrawGrid();
 
 		Gizmos::Draw(ViewMatrix, ProjectionMatrix);
 
