@@ -137,9 +137,9 @@ void Gizmos::AddBox(const glm::vec3& center,
 	const glm::mat4& transform /* = mat4::identity */)
 {
 
-	glm::vec3 vX(vDimensions.x, 0, 0);
-	glm::vec3 vY(0, vDimensions.y, 0);
-	glm::vec3 vZ(0, 0, vDimensions.z);
+	glm::vec3 vX(vDimensions.x/2.0f, 0, 0);
+	glm::vec3 vY(0, vDimensions.y/2.0f, 0);
+	glm::vec3 vZ(0, 0, vDimensions.z/2.0f);
 
 	vX = (transform * glm::vec4(vX, 0)).xyz;
 	vY = (transform * glm::vec4(vY, 0)).xyz;
@@ -162,20 +162,20 @@ void Gizmos::AddBox(const glm::vec3& center,
 
 	glm::vec4 vWhite(1, 1, 1, 1);
 
-	AddLine(vVerts[0], vVerts[1], vWhite, vWhite);
-	AddLine(vVerts[1], vVerts[2], vWhite, vWhite);
-	AddLine(vVerts[2], vVerts[3], vWhite, vWhite);
-	AddLine(vVerts[3], vVerts[0], vWhite, vWhite);
+	AddLine(vVerts[0], vVerts[1], fillColour, fillColour);
+	AddLine(vVerts[1], vVerts[2], fillColour, fillColour);
+	AddLine(vVerts[2], vVerts[3], fillColour, fillColour);
+	AddLine(vVerts[3], vVerts[0], fillColour, fillColour);
 
-	AddLine(vVerts[4], vVerts[5], vWhite, vWhite);
-	AddLine(vVerts[5], vVerts[6], vWhite, vWhite);
-	AddLine(vVerts[6], vVerts[7], vWhite, vWhite);
-	AddLine(vVerts[7], vVerts[4], vWhite, vWhite);
+	AddLine(vVerts[4], vVerts[5], fillColour, fillColour);
+	AddLine(vVerts[5], vVerts[6], fillColour, fillColour);
+	AddLine(vVerts[6], vVerts[7], fillColour, fillColour);
+	AddLine(vVerts[7], vVerts[4], fillColour, fillColour);
 
-	AddLine(vVerts[0], vVerts[4], vWhite, vWhite);
-	AddLine(vVerts[1], vVerts[5], vWhite, vWhite);
-	AddLine(vVerts[2], vVerts[6], vWhite, vWhite);
-	AddLine(vVerts[3], vVerts[7], vWhite, vWhite);
+	AddLine(vVerts[0], vVerts[4], fillColour, fillColour);
+	AddLine(vVerts[1], vVerts[5], fillColour, fillColour);
+	AddLine(vVerts[2], vVerts[6], fillColour, fillColour);
+	AddLine(vVerts[3], vVerts[7], fillColour, fillColour);
 
 	if (filled)
 	{

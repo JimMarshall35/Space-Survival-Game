@@ -201,6 +201,7 @@ void* BasicHeap::Realloc(void* ptr, size_t newSize)
 {
 	BasicHeapBlockHeader* block = FindMemoryBlockFromPtr(ptr);
 	assert(block);
+	assert(!block->bDataIsFree);
 	size_t freeSpaceInBlock = block->Capacity - block->CurrentSize;
 	
 	if (!block->Next)

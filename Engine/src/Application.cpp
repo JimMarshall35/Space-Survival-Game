@@ -7,9 +7,11 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <ext.hpp>
+#include "TerrainOctree.h"
 
 Application::Application()
 {
+	
 	// Setup Window
 	if (!glfwInit())
 		return;
@@ -49,16 +51,23 @@ Application::Application()
 	Gizmos::Create();
 
 	// create a world-space matrix for a camera
-	CameraMatrix = glm::inverse(glm::lookAt(glm::vec3(50, 50, 50), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)));
+	CameraMatrix = glm::inverse(glm::lookAt(glm::vec3(50, 50, 50), glm::vec3(0, 0, 0), glm::vec3(0, 0, 1)));
 
+
+	FOV = glm::pi<float>() * 0.25f;
+	Aspect = (float) ScreenWidth/ (float)ScreenHeight;
+	Near = 0.1f;
+	Far = 3000.0f;
 	// create a perspective projection matrix with a 90 degree field-of-view and widescreen aspect ratio
-	ProjectionMatrix = glm::perspective(glm::pi<float>() * 0.25f, (float)ScreenHeight / (float)ScreenHeight, 0.1f, 1000.0f);
+	ProjectionMatrix = glm::perspective(FOV, Aspect, Near, Far);
 
 	CubeX = 0;
 	CubeY = 0;
 	CubeZ = 0;
 
 	CubeOptionsOpen = false;
+
+	glEnable(GL_DEPTH_TEST);
 }
 
 Application::~Application()
@@ -108,6 +117,7 @@ void Application::FreeCameraMovement(glm::mat4& transform, float deltaTime, floa
 	{
 		translation -= up * frameSpeed;
 	}
+	
 
 	transform[3] = translation;
 
@@ -165,15 +175,21 @@ void Application::FreeCameraMovement(glm::mat4& transform, float deltaTime, floa
 
 void Application::Run()
 {
+	TerrainOctree oct(&VoxelVolume);
+
 	while (!glfwWindowShouldClose(Window))
 	{
 		glfwPollEvents();
-		FreeCameraMovement(CameraMatrix, 0.0024, 100);
+		FreeCameraMovement(CameraMatrix, 0.0024, 300);
+		if (glfwGetKey(Window, 'J') == GLFW_PRESS)
+		{
+			DebugCaptureVisibleTerrainNodes(oct);
+		}
 
 		ViewMatrix = glm::inverse(CameraMatrix);
 
 		glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		Gizmos::Clear();
 
 		ImGui_ImplOpenGL3_NewFrame();
@@ -185,6 +201,10 @@ void Application::Run()
 			glm::vec3(1, 1, 1),
 			true
 		);
+
+		//VoxelVolume.DebugVisualiseVolume();
+		oct.DebugVisualiseChunks(VisibleNodes);
+		
 
 		Gizmos::Draw(ViewMatrix, ProjectionMatrix);
 
@@ -201,10 +221,16 @@ void Application::Run()
 			}
 		}		
 		ImGui::End();
-
+		ImGui::InputFloat("MinimumViewportAreaThreshold", &oct.MinimumViewportAreaThreshold);
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		glfwSwapBuffers(Window);
 	}
+}
+
+void Application::DebugCaptureVisibleTerrainNodes(TerrainOctree& terrainOctree)
+{
+	VisibleNodes.clear();
+	terrainOctree.GetChunksToRender(CameraMatrix, Aspect, FOV, Near, Far, VisibleNodes);
 }
