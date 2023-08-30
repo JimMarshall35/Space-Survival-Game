@@ -124,7 +124,7 @@ void TerrainOctree::GetChunksToRender(const Frustum& frustum, std::vector<Terrai
 				// here we need to determine the blocks projected size in the viewport and if it is 
 				// below a threshold or, I think the lowst mip level, then add it to the output list 
 				float val = ViewportAreaHeuristic(child, viewProjectionMatrix);
-				if (child->MipLevel == DebugMipLevelToDraw)//val < MinimumViewportAreaThreshold && val > 0.0f)//child->MipLevel == DebugMipLevelToDraw)//val < MinimumViewportAreaThreshold)//&& val > 0.0f)
+				if (val < MinimumViewportAreaThreshold && val > 0.0f)//child->MipLevel == DebugMipLevelToDraw)//val < MinimumViewportAreaThreshold)//&& val > 0.0f)
 				{
 					outNodesToRender.push_back(child);
 				}
@@ -159,7 +159,7 @@ float TerrainOctree::ViewportAreaHeuristic(TerrainOctreeNode* block, const glm::
 				vec3 corner = {
 					block->BottomLeftCorner.x + x * block->SizeInVoxels,
 					block->BottomLeftCorner.y + y * block->SizeInVoxels,
-					block->BottomLeftCorner.y + z * block->SizeInVoxels
+					block->BottomLeftCorner.z + z * block->SizeInVoxels
 				};
 				corners[z + 2 * y + 4 * x] = vec4(corner, 1.0f);
 			}
@@ -181,10 +181,10 @@ float TerrainOctree::ViewportAreaHeuristic(TerrainOctreeNode* block, const glm::
 			clipSpace.w
 		};
 		// clip vertices to screen edge
-		glm::vec2 clipped = {
+		glm::vec2 clipped = clipSpace; /*{
 			glm::clamp(clipSpace.x, -1.0f, 1.0f),
 			glm::clamp(clipSpace.y, -1.0f, 1.0f)
-		};
+		};*/
 
 		// get bounding extents of clipped coords
 		if (clipped.x < minX)
