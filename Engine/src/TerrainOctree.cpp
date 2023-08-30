@@ -51,7 +51,7 @@ void TerrainOctree::DebugVisualiseChunks(const std::vector<TerrainOctreeNode*>& 
 {
 	if (DebugMipLevelToDraw > -1)
 	{
-		//DebugVisualiseMipLevel(&ParentNode, DebugMipLevelToDraw, { 0,0,0,1 });
+		DebugVisualiseMipLevel(&ParentNode, DebugMipLevelToDraw, { 0,0,0,1 });
 	}
 	glm::vec3 parentCenter = {
 			ParentNode.BottomLeftCorner.x + (ParentNode.SizeInVoxels / 2),
@@ -124,7 +124,7 @@ void TerrainOctree::GetChunksToRender(const Frustum& frustum, std::vector<Terrai
 				// here we need to determine the blocks projected size in the viewport and if it is 
 				// below a threshold or, I think the lowst mip level, then add it to the output list 
 				float val = ViewportAreaHeuristic(child, viewProjectionMatrix);
-				if (val < MinimumViewportAreaThreshold && val > 0.0f)//child->MipLevel == DebugMipLevelToDraw)//val < MinimumViewportAreaThreshold)//&& val > 0.0f)
+				if (val < MinimumViewportAreaThreshold && val > 0.0f)
 				{
 					outNodesToRender.push_back(child);
 				}
@@ -132,9 +132,6 @@ void TerrainOctree::GetChunksToRender(const Frustum& frustum, std::vector<Terrai
 				{
 					GetChunksToRender(frustum, outNodesToRender, child, viewProjectionMatrix);
 				}
-				//outNodesToRender.push_back(child);
-				//GetChunksToRender(frustum, outNodesToRender, child, viewProjectionMatrix);
-
 			}
 		}
 		else
@@ -180,29 +177,24 @@ float TerrainOctree::ViewportAreaHeuristic(TerrainOctreeNode* block, const glm::
 			clipSpace.z / clipSpace.w,
 			clipSpace.w
 		};
-		// clip vertices to screen edge
-		glm::vec2 clipped = clipSpace; /*{
-			glm::clamp(clipSpace.x, -1.0f, 1.0f),
-			glm::clamp(clipSpace.y, -1.0f, 1.0f)
-		};*/
 
 		// get bounding extents of clipped coords
-		if (clipped.x < minX)
+		if (clipSpace.x < minX)
 		{
-			minX = clipped.x;
+			minX = clipSpace.x;
 		}
-		else if (clipped.x > maxX)
+		else if (clipSpace.x > maxX)
 		{
-			maxX = clipped.x;
+			maxX = clipSpace.x;
 		}
 
-		if (clipped.y < minY)
+		if (clipSpace.y < minY)
 		{
-			minY = clipped.y;
+			minY = clipSpace.y;
 		}
-		else if (clipped.y > maxY)
+		else if (clipSpace.y > maxY)
 		{
-			maxY = clipped.y;
+			maxY = clipSpace.y;
 		}
 	}
 
@@ -243,7 +235,7 @@ void TerrainOctree::PopulateChildren(TerrainOctreeNode* node)
 		}
 	}
 	
-	if (childDims > 16)
+	if (childDims > BASE_CELL_SIZE)
 	{
 		for (i32 i = 0; i < 8; i++)
 		{
@@ -276,7 +268,7 @@ u32 TerrainOctree::GetMipLevel(i32 cellVoxelsWidth)
 {
 
 	u32 mipLevel = 0;
-	while (cellVoxelsWidth != 16)
+	while (cellVoxelsWidth != BASE_CELL_SIZE)
 	{
 		mipLevel++;
 		cellVoxelsWidth /= 2;
