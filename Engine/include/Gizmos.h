@@ -1,8 +1,10 @@
 #pragma once
 
+#include "Core.h"
+
 #include <glm.hpp>
 
-class Gizmos
+class APP_API Gizmos
 {
 public:
 

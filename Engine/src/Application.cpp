@@ -208,7 +208,7 @@ void Application::Run()
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-		
+
 		Gizmos::AddBox(
 			glm::vec3(CubeX, CubeY, CubeZ),
 			glm::vec3(1, 1, 1),
@@ -230,7 +230,7 @@ void Application::Run()
 
 				ImGui::TreePop();
 			}
-		}		
+		}
 		ImGui::End();
 
 		ImGui::Render();
