@@ -7,7 +7,7 @@ class Gizmos
 {
 public:
 
-	static void		Create(unsigned int maxLines = 16384, unsigned int maxTris = 16384);
+	static void		Create(unsigned int maxLines = 16384*4, unsigned int maxTris = 16384*4);
 	static void		Destroy();
 
 	// removes all Gizmos

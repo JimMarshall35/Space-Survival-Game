@@ -4,9 +4,12 @@
 #include <memory>
 #include <glm.hpp>
 #include <vector>
+#include "Camera.h"
+
 using namespace glm;
 
 class ITerrainVoxelVolume;
+class Camera;
 struct Frustum;
 
 struct TerrainChunkMesh
@@ -36,7 +39,7 @@ public:
 	// these will be frustum culled and LOD'd correctly 
 	// from the cam data provided
 	void GetChunksToRender(
-		const glm::mat4& camMatrix, 
+		const Camera& camera,
 		float aspect, float fovY, float zNear, float zFar, 
 		std::vector<TerrainOctreeNode*>& outNodesToRender);
 
@@ -45,8 +48,11 @@ public:
 
 	// if the viewport area heuristic for a block is < this value then
 	// the block will be rendered and it's subtree skipped.
-	float MinimumViewportAreaThreshold = 1.0f;
+	float MinimumViewportAreaThreshold = 1.0;
 
+	bool bDebugFill = false;
+
+	i32 DebugMipLevelToDraw = -1;
 private:
 
 	void GetChunksToRender(
@@ -71,6 +77,8 @@ private:
 
 	void PopulateDebugMipLevelColourTable(u32 maximumMipLevel);
 
+	void DebugVisualiseMipLevel(TerrainOctreeNode* parentNode, u32 mipLevel, const glm::vec4& colour);
+
 private:
 	
 
@@ -83,5 +91,12 @@ private:
 
 	// for colouring different mip level blocks different colours during debugging
 	std::unique_ptr<glm::vec4[]> DebugMipLevelColourTable;
+
+
+	bool bDebugCameraSet;
+	
+	Camera DebugCamera;
+
+	
 
 };

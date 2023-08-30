@@ -8,6 +8,9 @@
 #include <imgui_impl_opengl3.h>
 #include <ext.hpp>
 #include "TerrainOctree.h"
+bool Application::bWantMouseInput;
+bool Application::bWantKeyboardInput;
+Camera Application::DebugCamera;
 
 Application::Application()
 {
@@ -41,7 +44,7 @@ Application::Application()
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
+	
 
 	ImGui_ImplGlfw_InitForOpenGL(Window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
@@ -49,9 +52,6 @@ Application::Application()
 
 	// Initialise the Gizmos helper class
 	Gizmos::Create();
-
-	// create a world-space matrix for a camera
-	CameraMatrix = glm::inverse(glm::lookAt(glm::vec3(50, 50, 50), glm::vec3(0, 0, 0), glm::vec3(0, 0, 1)));
 
 
 	FOV = glm::pi<float>() * 0.25f;
@@ -81,112 +81,160 @@ Application::~Application()
 	glfwTerminate();
 }
 
-void Application::FreeCameraMovement(glm::mat4& transform, float deltaTime, float speed, const glm::vec3& worldUp /*= glm::vec3(0, 1, 0)*/)
+//void Application::FreeCameraMovement(glm::mat4& transform, float deltaTime, float speed, const glm::vec3& worldUp /*= glm::vec3(0, 1, 0)*/)
+//{
+//	Window = glfwGetCurrentContext();
+//
+//	glm::vec4 forward = transform[2];
+//	glm::vec4 right = transform[0];
+//	glm::vec4 up = transform[1];
+//	glm::vec4 translation = transform[3];
+//
+//	float frameSpeed = glfwGetKey(Window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? deltaTime * speed * 2 : deltaTime * speed;
+//
+//	// Translate camera
+//	if (glfwGetKey(Window, 'W') == GLFW_PRESS)
+//	{
+//		translation -= forward * frameSpeed;
+//	}
+//	if (glfwGetKey(Window, 'S') == GLFW_PRESS)
+//	{
+//		translation += forward * frameSpeed;
+//	}
+//	if (glfwGetKey(Window, 'D') == GLFW_PRESS)
+//	{
+//		translation += right * frameSpeed;
+//	}
+//	if (glfwGetKey(Window, 'A') == GLFW_PRESS)
+//	{
+//		translation -= right * frameSpeed;
+//	}
+//	if (glfwGetKey(Window, 'Q') == GLFW_PRESS)
+//	{
+//		translation += up * frameSpeed;
+//	}
+//	if (glfwGetKey(Window, 'E') == GLFW_PRESS)
+//	{
+//		translation -= up * frameSpeed;
+//	}
+//	
+//
+//	transform[3] = translation;
+//
+//	// check for camera rotation
+//	static bool mouseButtonDown = false;
+//	if (glfwGetMouseButton(Window, GLFW_MOUSE_BUTTON_2) == GLFW_PRESS)
+//	{
+//		static double prevMouseX = 0;
+//		static double prevMouseY = 0;
+//
+//		if (mouseButtonDown == false)
+//		{
+//			mouseButtonDown = true;
+//			glfwGetCursorPos(Window, &prevMouseX, &prevMouseY);
+//		}
+//
+//		double mouseX = 0, mouseY = 0;
+//		glfwGetCursorPos(Window, &mouseX, &mouseY);
+//
+//		double deltaX = mouseX - prevMouseX;
+//		double deltaY = mouseY - prevMouseY;
+//
+//		prevMouseX = mouseX;
+//		prevMouseY = mouseY;
+//
+//		glm::mat4 mat;
+//
+//		// pitch
+//		if (deltaY != 0)
+//		{
+//			mat = glm::axisAngleMatrix(right.xyz(), (float)-deltaY / 150.0f);
+//			right = mat * right;
+//			up = mat * up;
+//			forward = mat * forward;
+//		}
+//
+//		// yaw
+//		if (deltaX != 0)
+//		{
+//			mat = glm::axisAngleMatrix(worldUp, (float)-deltaX / 150.0f);
+//			right = mat * right;
+//			up = mat * up;
+//			forward = mat * forward;
+//		}
+//
+//		transform[0] = right;
+//		transform[1] = up;
+//		transform[2] = forward;
+//	}
+//	else
+//	{
+//		mouseButtonDown = false;
+//	}
+//}
+
+void Application::ProcessInput(GLFWwindow* window, float delta)
 {
-	Window = glfwGetCurrentContext();
-
-	glm::vec4 forward = transform[2];
-	glm::vec4 right = transform[0];
-	glm::vec4 up = transform[1];
-	glm::vec4 translation = transform[3];
-
-	float frameSpeed = glfwGetKey(Window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? deltaTime * speed * 2 : deltaTime * speed;
-
-	// Translate camera
-	if (glfwGetKey(Window, 'W') == GLFW_PRESS)
+	if (bWantKeyboardInput)
 	{
-		translation -= forward * frameSpeed;
+		return;
 	}
-	if (glfwGetKey(Window, 'S') == GLFW_PRESS)
-	{
-		translation += forward * frameSpeed;
+
+	double mouseX, mouseY;
+	glfwGetCursorPos(window, &mouseX, &mouseY);
+	CursorPositionCallback(window, mouseX, mouseY);
+
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+		glfwSetWindowShouldClose(window, true);
 	}
-	if (glfwGetKey(Window, 'D') == GLFW_PRESS)
-	{
-		translation += right * frameSpeed;
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+		DebugCamera.ProcessKeyboard(FORWARD, delta);
 	}
-	if (glfwGetKey(Window, 'A') == GLFW_PRESS)
-	{
-		translation -= right * frameSpeed;
+	else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+		DebugCamera.ProcessKeyboard(BACKWARD, delta);
 	}
-	if (glfwGetKey(Window, 'Q') == GLFW_PRESS)
-	{
-		translation += up * frameSpeed;
+	else if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+		DebugCamera.ProcessKeyboard(LEFT, delta);
 	}
-	if (glfwGetKey(Window, 'E') == GLFW_PRESS)
-	{
-		translation -= up * frameSpeed;
+	else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+		DebugCamera.ProcessKeyboard(RIGHT, delta);
 	}
-	
+}
 
-	transform[3] = translation;
-
-	// check for camera rotation
-	static bool mouseButtonDown = false;
-	if (glfwGetMouseButton(Window, GLFW_MOUSE_BUTTON_2) == GLFW_PRESS)
+void Application::CursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
+{
+	if (bWantMouseInput)
 	{
-		static double prevMouseX = 0;
-		static double prevMouseY = 0;
-
-		if (mouseButtonDown == false)
-		{
-			mouseButtonDown = true;
-			glfwGetCursorPos(Window, &prevMouseX, &prevMouseY);
-		}
-
-		double mouseX = 0, mouseY = 0;
-		glfwGetCursorPos(Window, &mouseX, &mouseY);
-
-		double deltaX = mouseX - prevMouseX;
-		double deltaY = mouseY - prevMouseY;
-
-		prevMouseX = mouseX;
-		prevMouseY = mouseY;
-
-		glm::mat4 mat;
-
-		// pitch
-		if (deltaY != 0)
-		{
-			mat = glm::axisAngleMatrix(right.xyz(), (float)-deltaY / 150.0f);
-			right = mat * right;
-			up = mat * up;
-			forward = mat * forward;
-		}
-
-		// yaw
-		if (deltaX != 0)
-		{
-			mat = glm::axisAngleMatrix(worldUp, (float)-deltaX / 150.0f);
-			right = mat * right;
-			up = mat * up;
-			forward = mat * forward;
-		}
-
-		transform[0] = right;
-		transform[1] = up;
-		transform[2] = forward;
+		return;
 	}
-	else
-	{
-		mouseButtonDown = false;
+
+	static double lastx = 0;
+	static double lasty = 0;
+
+	double dx = xpos - lastx;
+	double dy = ypos - lasty;
+
+	lastx = xpos;
+	lasty = ypos;
+	if (glfwGetMouseButton(window, 0) == GLFW_PRESS) {
+		DebugCamera.ProcessMouseMovement(dx, dy);
 	}
 }
 
 void Application::Run()
 {
 	TerrainOctree oct(&VoxelVolume);
-
+	//glfwSetCursorPosCallback(Window, Application::CursorPositionCallback);
+	ImGuiIO& io = ImGui::GetIO();
 	while (!glfwWindowShouldClose(Window))
 	{
-		glfwPollEvents();
-		FreeCameraMovement(CameraMatrix, 0.0024, 300);
-		if (glfwGetKey(Window, 'J') == GLFW_PRESS)
-		{
-			DebugCaptureVisibleTerrainNodes(oct);
-		}
+		bWantMouseInput = io.WantCaptureMouse;
+		bWantKeyboardInput = io.WantCaptureKeyboard;
 
-		ViewMatrix = glm::inverse(CameraMatrix);
+		glfwPollEvents();
+		//FreeCameraMovement(DebugC, 0.0024, 300);
+		ProcessInput(Window, 0.0024);
+
 
 		glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -195,6 +243,13 @@ void Application::Run()
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
+
+		if (glfwGetKey(Window, 'J') == GLFW_PRESS)
+		{
+			DebugCaptureVisibleTerrainNodes(oct);
+		}
+
+		
 		
 		Gizmos::AddBox(
 			glm::vec3(CubeX, CubeY, CubeZ),
@@ -206,7 +261,7 @@ void Application::Run()
 		oct.DebugVisualiseChunks(VisibleNodes);
 		
 
-		Gizmos::Draw(ViewMatrix, ProjectionMatrix);
+		Gizmos::Draw(DebugCamera.GetViewMatrix(), ProjectionMatrix);
 
 		ImGui::SetNextItemWidth(200);
 		if (ImGui::Begin("Objects", &CubeOptionsOpen, 0))
@@ -219,9 +274,13 @@ void Application::Run()
 
 				ImGui::TreePop();
 			}
+			ImGui::InputFloat("MinimumViewportAreaThreshold", &oct.MinimumViewportAreaThreshold);
+			ImGui::Checkbox("Fill Terrain Debug Boxes", &oct.bDebugFill);
+			ImGui::InputInt("Mip level to draw", &oct.DebugMipLevelToDraw);
+			
 		}		
 		ImGui::End();
-		ImGui::InputFloat("MinimumViewportAreaThreshold", &oct.MinimumViewportAreaThreshold);
+		
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -232,5 +291,5 @@ void Application::Run()
 void Application::DebugCaptureVisibleTerrainNodes(TerrainOctree& terrainOctree)
 {
 	VisibleNodes.clear();
-	terrainOctree.GetChunksToRender(CameraMatrix, Aspect, FOV, Near, Far, VisibleNodes);
+	terrainOctree.GetChunksToRender(DebugCamera, Aspect, FOV, Near, Far, VisibleNodes);
 }

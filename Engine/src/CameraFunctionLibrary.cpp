@@ -1,4 +1,6 @@
 #include "CameraFunctionLibrary.h"
+#include "Gizmos.h"
+#include "Camera.h"
 
 void CameraFunctionLibrary::CreateFrustumFromCamera(const glm::mat4& camMatrix, float aspect, float fovY, float zNear, float zFar, Frustum& outFrustum)
 {
@@ -18,6 +20,10 @@ void CameraFunctionLibrary::CreateFrustumFromCamera(const glm::mat4& camMatrix, 
 	outFrustum.leftFace = { translation, glm::cross(frontMultFar - right * halfHSide, up) };
 	outFrustum.topFace = { translation, glm::cross(right, frontMultFar - up * halfVSide) };
 	outFrustum.bottomFace = { translation, glm::cross(frontMultFar + up * halfVSide, right) };
+
+	//Gizmos::AddBox(translation, { 1.0,1.0,1.0 }, true);
+	//Gizmos::AddSphere(translation, 10, 10, 0.5, { 1.0,1.0,0.0,1.0 });
+	//Gizmos::AddLine(translation, translation + glm::normalize(forward) * 1.0f, { 1.0,1.0,1.0,1.0 });
 }
 
 bool CameraFunctionLibrary::IsSphereInFrustum(const glm::vec3& center, float radius, const Frustum& frustum)
@@ -34,4 +40,21 @@ bool CameraFunctionLibrary::IsSphereInFrustum(const glm::vec3& center, float rad
 bool CameraFunctionLibrary::IsSphereOnOrForwardPlane(const Plane& plane, const glm::vec3& center, float radius)
 {
 	return plane.getSignedDistanceToPlane(center) > -radius;
+}
+
+Frustum CameraFunctionLibrary::CreateFrustumFromCamera(const Camera& cam, float aspect, float fovY, float zNear, float zFar)
+{
+	Frustum     frustum;
+	const float halfVSide = zFar * tanf(fovY * .5f);
+	const float halfHSide = halfVSide * aspect;
+	const glm::vec3 frontMultFar = zFar * cam.Front;
+
+	frustum.nearFace = { cam.Position + zNear * cam.Front, cam.Front };
+	frustum.farFace = { cam.Position + frontMultFar, -cam.Front };
+	frustum.rightFace = { cam.Position, glm::cross(cam.Up, frontMultFar + cam.Right * halfHSide) };
+	frustum.leftFace = { cam.Position, glm::cross(frontMultFar - cam.Right * halfHSide, cam.Up) };
+	frustum.topFace = { cam.Position, glm::cross(cam.Right, frontMultFar - cam.Up * halfVSide) };
+	frustum.bottomFace = { cam.Position, glm::cross(frontMultFar + cam.Up * halfVSide, cam.Right) };
+
+	return frustum;
 }

@@ -7,10 +7,12 @@
 #include <glm.hpp>
 #include "TerrainVoxelVolume.h"
 #include <vector>
+#include "Camera.h"
 
 class GLFWwindow;
 class TerrainOctree;
 struct TerrainOctreeNode;
+struct ImGuiIO;
 
 class APP_API Application
 {
@@ -27,16 +29,17 @@ protected:
 
 private:
 	void DebugCaptureVisibleTerrainNodes(TerrainOctree& terrainOctree);
-
+	static void ProcessInput(GLFWwindow* window, float delta);
+	static void CursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
 private:
 	GLFWwindow* Window;
 
 	int ScreenWidth;
 	int ScreenHeight;
 
-	glm::mat4 CameraMatrix;
+	static Camera DebugCamera;
 	glm::mat4 ProjectionMatrix;
-	glm::mat4 ViewMatrix;
+
 
 	bool CubeOptionsOpen;
 
@@ -53,4 +56,7 @@ private:
 	std::vector<TerrainOctreeNode*> VisibleNodes;
 	TerrainVoxelVolume VoxelVolume;
 	
+	static bool bWantMouseInput;
+	static bool bWantKeyboardInput;
+
 };

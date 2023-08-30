@@ -3,6 +3,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <ext.hpp>
+#include <iostream>
 
 Gizmos* Gizmos::sm_singleton = nullptr;
 
@@ -348,16 +349,23 @@ void Gizmos::AddLine(const glm::vec3& rv0, const glm::vec3& rv1, const glm::vec4
 
 void Gizmos::AddLine(const glm::vec3& rv0, const glm::vec3& rv1, const glm::vec4& colour0, const glm::vec4& colour1)
 {
-	if (sm_singleton != nullptr &&
-		sm_singleton->m_lineCount < sm_singleton->m_maxLines)
+	if (sm_singleton != nullptr)
 	{
-		sm_singleton->m_lines[sm_singleton->m_lineCount].v0.position = glm::vec4(rv0, 1);
-		sm_singleton->m_lines[sm_singleton->m_lineCount].v0.colour = colour0;
-		sm_singleton->m_lines[sm_singleton->m_lineCount].v1.position = glm::vec4(rv1, 1);
-		sm_singleton->m_lines[sm_singleton->m_lineCount].v1.colour = colour1;
+		if (sm_singleton->m_lineCount < sm_singleton->m_maxLines)
+		{
+			sm_singleton->m_lines[sm_singleton->m_lineCount].v0.position = glm::vec4(rv0, 1);
+			sm_singleton->m_lines[sm_singleton->m_lineCount].v0.colour = colour0;
+			sm_singleton->m_lines[sm_singleton->m_lineCount].v1.position = glm::vec4(rv1, 1);
+			sm_singleton->m_lines[sm_singleton->m_lineCount].v1.colour = colour1;
 
-		sm_singleton->m_lineCount++;
+			sm_singleton->m_lineCount++;
+		}
+		else
+		{
+			std::cout << "m_maxLines exceeded. m_maxLines: " << sm_singleton->m_maxLines << " m_lineCount: "<< sm_singleton->m_lineCount <<"\n";
+		}
 	}
+	
 }
 
 void Gizmos::AddTri(const glm::vec3& rv0, const glm::vec3& rv1, const glm::vec3& rv2, const glm::vec4& colour)

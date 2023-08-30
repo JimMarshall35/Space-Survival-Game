@@ -29,25 +29,30 @@ void TerrainOctree::MakeQuadtree()
 	assert(IsAPowerOfTwo(terrainDims.z));
 
 	ParentNode.MipLevel = GetMipLevel(terrainDims.x);
+	DebugMipLevelToDraw = ParentNode.MipLevel;
 	PopulateDebugMipLevelColourTable(ParentNode.MipLevel);
 	ParentNode.BottomLeftCorner = { 0,0,0 };
 	ParentNode.SizeInVoxels = terrainDims.x;
 	PopulateChildren(&ParentNode);
 }
 
-void TerrainOctree::GetChunksToRender(const glm::mat4& camMatrix, float aspect, float fovY, float zNear, float zFar, std::vector<TerrainOctreeNode*>& outNodesToRender)
+void TerrainOctree::GetChunksToRender(const Camera& cam, float aspect, float fovY, float zNear, float zFar, std::vector<TerrainOctreeNode*>& outNodesToRender)
 {
-	Frustum frustum;
-	CameraFunctionLibrary::CreateFrustumFromCamera(camMatrix, aspect, fovY, zNear, zFar, frustum);
+	Frustum frustum = CameraFunctionLibrary::CreateFrustumFromCamera(cam, aspect, fovY, zNear, zFar);
 	glm::mat4 projection = glm::perspective(fovY, aspect, zNear, zFar);
-	glm::mat4 viewMatrix = glm::inverse(camMatrix);
+	glm::mat4 viewMatrix = cam.GetViewMatrix();
 	glm::mat4 viewProjectionMatrix = projection * viewMatrix;
 	GetChunksToRender(frustum, outNodesToRender, &ParentNode, viewProjectionMatrix);
-
+	DebugCamera = cam;
+	bDebugCameraSet = true;
 }
 
 void TerrainOctree::DebugVisualiseChunks(const std::vector<TerrainOctreeNode*>& nodes)
 {
+	if (DebugMipLevelToDraw > -1)
+	{
+		//DebugVisualiseMipLevel(&ParentNode, DebugMipLevelToDraw, { 0,0,0,1 });
+	}
 	glm::vec3 parentCenter = {
 			ParentNode.BottomLeftCorner.x + (ParentNode.SizeInVoxels / 2),
 			ParentNode.BottomLeftCorner.y + (ParentNode.SizeInVoxels / 2),
@@ -70,10 +75,24 @@ void TerrainOctree::DebugVisualiseChunks(const std::vector<TerrainOctreeNode*>& 
 		Gizmos::AddBox(
 			center,
 			{node->SizeInVoxels, node->SizeInVoxels, node->SizeInVoxels}, // dimensions
-			true,
+			bDebugFill,
 			DebugMipLevelColourTable[node->MipLevel]
 		);
 	}
+
+	if (bDebugCameraSet)
+	{
+		glm::vec3 forward = DebugCamera.Front;
+		glm::vec3 right = DebugCamera.Right;
+		glm::vec3 up = DebugCamera.Up;
+		glm::vec3 translation = DebugCamera.Position;
+		//Gizmos::AddSphere(translation, 10, 10, 0.5, { 1.0,1.0,0.0,1.0 });
+
+		Gizmos::AddLine(translation, translation + glm::normalize(forward) * 1.0f, { 0.0,0.0,1.0,1.0 });
+		Gizmos::AddLine(translation, translation + glm::normalize(up) * 1.0f, { 0.0,1.0,0.0,1.0 });
+		Gizmos::AddLine(translation, translation + glm::normalize(right) * 1.0f, { 1.0,0.0,0.0,1.0 });
+	}
+	
 }
 
 void TerrainOctree::GetChunksToRender(const Frustum& frustum, std::vector<TerrainOctreeNode*>& outNodesToRender, TerrainOctreeNode* onNode, const glm::mat4& viewProjectionMatrix)
@@ -97,14 +116,15 @@ void TerrainOctree::GetChunksToRender(const Frustum& frustum, std::vector<Terrai
 			{
 				child->BottomLeftCorner.x + (float)child->SizeInVoxels / 2.0f,
 				child->BottomLeftCorner.y + (float)child->SizeInVoxels / 2.0f,
-				child->BottomLeftCorner.y + (float)child->SizeInVoxels / 2.0f
+				child->BottomLeftCorner.z + (float)child->SizeInVoxels / 2.0f
 			};
 			float sphereRadius = abs(glm::length(sphereCenter - glm::vec3(child->BottomLeftCorner))); // maybe abs not needed - todo - find out
 			if (CameraFunctionLibrary::IsSphereInFrustum(sphereCenter, sphereRadius, frustum))
 			{
 				// here we need to determine the blocks projected size in the viewport and if it is 
 				// below a threshold or, I think the lowst mip level, then add it to the output list 
-				if (ViewportAreaHeuristic(child, viewProjectionMatrix) < MinimumViewportAreaThreshold || child->SizeInVoxels == 16)
+				float val = ViewportAreaHeuristic(child, viewProjectionMatrix);
+				if (child->MipLevel == DebugMipLevelToDraw)//val < MinimumViewportAreaThreshold && val > 0.0f)//child->MipLevel == DebugMipLevelToDraw)//val < MinimumViewportAreaThreshold)//&& val > 0.0f)
 				{
 					outNodesToRender.push_back(child);
 				}
@@ -112,9 +132,18 @@ void TerrainOctree::GetChunksToRender(const Frustum& frustum, std::vector<Terrai
 				{
 					GetChunksToRender(frustum, outNodesToRender, child, viewProjectionMatrix);
 				}
+				//outNodesToRender.push_back(child);
+				//GetChunksToRender(frustum, outNodesToRender, child, viewProjectionMatrix);
+
 			}
 		}
+		else
+		{
+			outNodesToRender.push_back(onNode);
+		}
 	}
+
+
 }
 
 float TerrainOctree::ViewportAreaHeuristic(TerrainOctreeNode* block, const glm::mat4& viewProjectionMatrix)
@@ -145,10 +174,14 @@ float TerrainOctree::ViewportAreaHeuristic(TerrainOctreeNode* block, const glm::
 	{
 		// transform into clip space
 		glm::vec4 clipSpace = viewProjectionMatrix * corners[i];
-
+		clipSpace = {
+			clipSpace.x / clipSpace.w,
+			clipSpace.y / clipSpace.w,
+			clipSpace.z / clipSpace.w,
+			clipSpace.w
+		};
 		// clip vertices to screen edge
-		glm::vec2 clipped =
-		{
+		glm::vec2 clipped = {
 			glm::clamp(clipSpace.x, -1.0f, 1.0f),
 			glm::clamp(clipSpace.y, -1.0f, 1.0f)
 		};
@@ -190,7 +223,8 @@ void TerrainOctree::PopulateChildren(TerrainOctreeNode* node)
 		{
 			for (i32 z = 0; z < 2; z++)
 			{
-				std::unique_ptr<TerrainOctreeNode>& child = node->Children[z + 2 * y + 4 * x];
+				i32 i = z + (2 * y) + (4 * x);
+				std::unique_ptr<TerrainOctreeNode>& child = node->Children[i];
 				if (child.get()) 
 				{
 					child.reset();
@@ -198,7 +232,13 @@ void TerrainOctree::PopulateChildren(TerrainOctreeNode* node)
 				child = std::make_unique<TerrainOctreeNode>();
 				child->SizeInVoxels = childDims;
 				child->MipLevel = childMipLevel;
-				child->BottomLeftCorner = { x * childDims, y * childDims, z * childDims };
+				glm::ivec3& parentBottomLeft = node->BottomLeftCorner;
+				child->BottomLeftCorner = 
+				{ 
+					parentBottomLeft.x + x * childDims, 
+					parentBottomLeft.y + y * childDims, 
+					parentBottomLeft.z + z * childDims 
+				};
 			}
 		}
 	}
@@ -252,5 +292,34 @@ void TerrainOctree::PopulateDebugMipLevelColourTable(u32 maximumMipLevel)
 	for (int i = 0; i <= maximumMipLevel; i++)
 	{
 		DebugMipLevelColourTable[i] = glm::mix(red, green, (float)i / (float)maximumMipLevel);
+	}
+}
+
+void TerrainOctree::DebugVisualiseMipLevel(TerrainOctreeNode* node, u32 mipLevel, const glm::vec4& colour)
+{
+	if (node->MipLevel == mipLevel)
+	{
+		glm::vec3 center = {
+			node->BottomLeftCorner.x + (node->SizeInVoxels / 2),
+			node->BottomLeftCorner.y + (node->SizeInVoxels / 2),
+			node->BottomLeftCorner.z + (node->SizeInVoxels / 2)
+		};
+
+		Gizmos::AddBox(
+			center,
+			{ node->SizeInVoxels, node->SizeInVoxels, node->SizeInVoxels }, // dimensions
+			bDebugFill,
+			DebugMipLevelColourTable[node->MipLevel]
+		);
+	}
+	else
+	{
+		for (i32 i = 0; i < 8; i++)
+		{
+			if (TerrainOctreeNode* childNode = node->Children[i].get())
+			{
+				DebugVisualiseMipLevel(childNode, mipLevel, colour);
+			}
+		}
 	}
 }

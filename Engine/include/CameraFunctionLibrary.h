@@ -1,6 +1,8 @@
 #pragma once
 #include <glm.hpp>
 
+class Camera;
+
 struct Plane
 {
 	glm::vec3 normal = { 0.f, 1.f, 0.f }; // unit vector
@@ -38,4 +40,5 @@ public:
 	static void CreateFrustumFromCamera(const glm::mat4& camMatrix, float aspect, float fovY, float zNear, float zFar, Frustum& outFrustum);
 	static bool IsSphereInFrustum(const glm::vec3& center, float radius, const Frustum& frustum);
 	static bool IsSphereOnOrForwardPlane(const Plane& plane, const glm::vec3& center, float radius);
+	static Frustum CreateFrustumFromCamera(const Camera& cam, float aspect, float fovY, float zNear, float zFar);
 };
