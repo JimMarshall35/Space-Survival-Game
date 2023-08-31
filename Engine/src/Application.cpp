@@ -1,5 +1,6 @@
 #include "Application.h"
 
+#include "ScopeTimer.h"
 #include "Gizmos.h"
 
 #include <iostream>
@@ -194,8 +195,12 @@ void Application::DrawGrid()
 
 void Application::Run()
 {
+	DEBUG_SCOPETIMER
+
 	while (!glfwWindowShouldClose(Window))
 	{
+		DEBUG_SCOPETIMER
+
 		glfwPollEvents();
 		FreeCameraMovement(CameraMatrix, 0.0024, 100);
 
@@ -238,6 +243,9 @@ void Application::Run()
 
 		glfwSwapBuffers(Window);
 	}
+
+	DEBUG_PRINTALL
+	DEBUG_CLEARMESSAGES
 }
 
 void Application::FrameBufferSizeChangedCallback(GLFWwindow* window, int width, int height)
