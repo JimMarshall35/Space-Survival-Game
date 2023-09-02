@@ -3,7 +3,7 @@
 #include <string>
 #include "CommonTypedefs.h"
 #include "Core.h"
-
+#include "IAllocator.h"
 
 
 #define BasicAlloc(numBytes) malloc(numBytes)
@@ -34,14 +34,15 @@ struct APP_API BasicHeapBlockHeader
 };
 
 
-class APP_API BasicHeap {
+class APP_API BasicHeap : public IAllocator{
 	friend class BasicHeapAllocatorTestHarness;
 public:
 	BasicHeap(unsigned int maxSize, const std::string& name);
 	~BasicHeap();
-	void* Malloc(size_t size);
-	void* Realloc(void* ptr, size_t newSize);
-	void Free(void* ptr);
+	virtual void* Malloc(size_t size) override;
+	virtual void* Realloc(void* ptr, size_t newSize) override;
+	virtual void Free(void* ptr) override;
+	
 	void DebugPrintAllBlocks();
 	void DebugPrintOverview();
 private:

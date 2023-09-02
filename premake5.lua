@@ -272,6 +272,59 @@ project "AllocatorTest"
 		optimize "On"
 		runtime "Release"
 
+project "VoxelVolumeTest"
+	location "VoxelVolumeTest"
+	kind "ConsoleApp"
+	language "C++"
+	cppdialect "C++17"
+	staticruntime "on"
+	systemversion "latest"
+
+	dependson
+	{
+		"Engine",
+	}
+
+	targetdir "Bin/Game/%{cfg.buildcfg}/%{cfg.platform}"
+	objdir "Bin/Intermediate/AllocatorTest/%{cfg.buildcfg}/%{cfg.platform}"
+
+	files
+	{
+		"%{prj.name}/include/**.h",
+		"%{prj.name}/src/**.cpp"
+	}
+
+	includedirs
+	{
+		"%{prj.name}/include"	
+	}
+	
+	externalincludedirs
+	{
+		"%{prj.name}/../Engine/include",
+		"vendor\\glm\\glm",
+	}
+
+	libdirs
+	{
+		"Bin\\Engine\\%{cfg.buildcfg}\\%{cfg.platform}",
+	}
+
+	links
+	{
+		"Engine.lib",
+	}
+
+	filter "configurations:Debug"
+		defines { "DEBUG" }
+		symbols "On"
+		runtime "Debug"
+
+	filter "configurations:Release"
+		defines { "NDEBUG" }
+		optimize "On"
+		runtime "Release"
+
 
 externalproject "glfw"
 	location ("%{wks.location}\\vendor\\glfw\\build\\src")

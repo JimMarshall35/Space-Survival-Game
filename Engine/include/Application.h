@@ -10,8 +10,8 @@
 #include "Camera.h"
 
 class GLFWwindow;
-class TerrainOctree;
-struct TerrainOctreeNode;
+class DebugVisualizerTerrainOctree;
+struct ITerrainOctreeNode;
 struct ImGuiIO;
 
 class APP_API Application
@@ -28,7 +28,7 @@ protected:
 
 
 private:
-	void DebugCaptureVisibleTerrainNodes(TerrainOctree& terrainOctree);
+	void DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree);
 	static void ProcessInput(GLFWwindow* window, float delta);
 	static void CursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
 private:
@@ -53,8 +53,8 @@ private:
 	float Far;
 
 	
-	std::vector<TerrainOctreeNode*> VisibleNodes;
-	TerrainVoxelVolume VoxelVolume;
+	std::vector<ITerrainOctreeNode*> VisibleNodes;
+	
 	
 	static bool bWantMouseInput;
 	static bool bWantKeyboardInput;

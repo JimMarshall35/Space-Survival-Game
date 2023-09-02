@@ -8,6 +8,7 @@
 #include <imgui_impl_opengl3.h>
 #include <ext.hpp>
 #include "TerrainOctree.h"
+#include "DefaultAllocator.h"
 bool Application::bWantMouseInput;
 bool Application::bWantKeyboardInput;
 Camera Application::DebugCamera;
@@ -221,9 +222,24 @@ void Application::CursorPositionCallback(GLFWwindow* window, double xpos, double
 	}
 }
 
+struct dummy
+{
+	u16 di;
+	i8 da;
+};
 void Application::Run()
 {
-	TerrainOctree oct(&VoxelVolume);
+	DefaultAllocator allocator;
+	TerrainVoxelVolume voxelVolume(&allocator);
+
+	/*voxelVolume.SetValue({ 1,2,3 }, 28);
+	i8 val = voxelVolume.GetValue({ 1,2,3 });
+	std::cout << "Value: " << (int)val << "\n";*/
+	DebugVisualizerTerrainOctree oct(&voxelVolume);
+	SparseTerrainVoxelOctree sparse(&allocator, 2048, 50, -50);
+	TerrainOctreeIndex octreeIndex = sparse.SetVoxelAt({ 100,200,300 }, 42);
+	i8 valFromGet = sparse.GetVoxelAt({ 101,200,300 });
+	SparseTerrainVoxelOctree::SparseTerrainOctreeNode* nodeFromIndex = sparse.FindNodeFromIndex(octreeIndex);
 	//glfwSetCursorPosCallback(Window, Application::CursorPositionCallback);
 	ImGuiIO& io = ImGui::GetIO();
 	while (!glfwWindowShouldClose(Window))
@@ -274,7 +290,11 @@ void Application::Run()
 
 				ImGui::TreePop();
 			}
-			ImGui::InputFloat("MinimumViewportAreaThreshold", &oct.MinimumViewportAreaThreshold);
+			float inputVal = oct.GetMinimumViewportAreaThreshold();
+			if(ImGui::InputFloat("MinimumViewportAreaThreshold", &inputVal))
+			{
+				oct.SetMinimumViewportAreaThreshold(inputVal);
+			}
 			ImGui::Checkbox("Fill Terrain Debug Boxes", &oct.bDebugFill);
 			ImGui::InputInt("Mip level to draw", &oct.DebugMipLevelToDraw);
 			
@@ -288,7 +308,7 @@ void Application::Run()
 	}
 }
 
-void Application::DebugCaptureVisibleTerrainNodes(TerrainOctree& terrainOctree)
+void Application::DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree)
 {
 	VisibleNodes.clear();
 	terrainOctree.GetChunksToRender(DebugCamera, Aspect, FOV, Near, Far, VisibleNodes);
