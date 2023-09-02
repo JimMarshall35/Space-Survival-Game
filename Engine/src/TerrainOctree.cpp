@@ -332,8 +332,8 @@ void SparseTerrainVoxelOctree::FillPrePolygonizingVoxelStagingArea(SparseTerrain
 	i32 y = node->BottomLeftCorner.y - POLYGONIZER_NEGATIVE_GUTTER * stepSize;
 	i32 z = node->BottomLeftCorner.z - POLYGONIZER_NEGATIVE_GUTTER * stepSize;
 	i32 endX = node->BottomLeftCorner.x + node->SizeInVoxels + POLYGONIZER_POSITIVE_GUTTER * stepSize;
-	i32 endY = node->BottomLeftCorner.x + node->SizeInVoxels + POLYGONIZER_POSITIVE_GUTTER * stepSize;
-	i32 endZ = node->BottomLeftCorner.x + node->SizeInVoxels + POLYGONIZER_POSITIVE_GUTTER * stepSize;
+	i32 endY = node->BottomLeftCorner.y + node->SizeInVoxels + POLYGONIZER_POSITIVE_GUTTER * stepSize;
+	i32 endZ = node->BottomLeftCorner.z + node->SizeInVoxels + POLYGONIZER_POSITIVE_GUTTER * stepSize;
 
 	for (x; x < endX; x += stepSize)
 	{
