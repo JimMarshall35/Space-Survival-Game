@@ -4,6 +4,7 @@
 #include "IVoxelDataSource.h"
 
 #define TERRAIN_CELL_VERTEX_ARRAY_SIZE 5000 // each worker can output this number of vertices maximum
+#define TERRAIN_CELL_INDEX_ARRAY_SIZE 10000 // each worker can output this number of vertices maximum
 
 TerrainPolygonizer::TerrainPolygonizer(IAllocator* allocator)
 	:Allocator(allocator),
@@ -31,7 +32,8 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	u8* data = (u8*)Allocator->Malloc(
 		sizeof(PolygonizeWorkerThreadData) +
 		TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainNormal) +
-		TERRAIN_CELL_VERTEX_ARRAY_SIZE + sizeof(TerrainPosition) +
+		TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainPosition) +
+		TERRAIN_CELL_INDEX_ARRAY_SIZE * sizeof(u32) +
 		TOTAL_CELL_VOLUME_SIZE * sizeof(i8)
 	); // malloc everything in a single block
 
@@ -43,12 +45,15 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	dataPtr += TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainNormal);
 	rVal->Positions = (TerrainPosition*)dataPtr;
 	dataPtr += TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainPosition);
+	rVal->Indices = (u32*)dataPtr;
+	dataPtr += TERRAIN_CELL_INDEX_ARRAY_SIZE * sizeof(u32);
 	rVal->VoxelData = (i8*)dataPtr;
 
-	rVal->PositionsSize = TERRAIN_CELL_VERTEX_ARRAY_SIZE;
-	rVal->NormalsSize = TERRAIN_CELL_VERTEX_ARRAY_SIZE;
+	rVal->VerticesSize = TERRAIN_CELL_VERTEX_ARRAY_SIZE;
+	rVal->IndicesSize = TERRAIN_CELL_INDEX_ARRAY_SIZE;
 	rVal->Node = cellToPolygonize;
 	rVal->OutputtedVertices = 0;
+	rVal->OutputtedIndices = 0;
 	rVal->MyAllocator = Allocator;
 
 	source->GetVoxelsForNode(cellToPolygonize, rVal->VoxelData);

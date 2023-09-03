@@ -14,10 +14,13 @@ typedef glm::vec3 TerrainNormal;
 struct PolygonizeWorkerThreadData
 {
 	TerrainPosition* Positions;
-	size_t PositionsSize;
 	TerrainNormal* Normals;
-	size_t NormalsSize;
-	size_t OutputtedVertices;
+	u32* Indices;
+	u32 IndicesSize;
+	u32 VerticesSize;
+	u32 IndicesSize;
+	u32 OutputtedVertices;
+	u32 OutputtedIndices;
 	std::mutex Mutex;
 	i8* VoxelData;
 	ITerrainOctreeNode* Node;

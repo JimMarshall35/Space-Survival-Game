@@ -158,13 +158,17 @@ void SparseTerrainVoxelOctree::GetChunksToRender(const Camera& camera, float asp
 	glm::mat4 viewMatrix = camera.GetViewMatrix();
 	glm::mat4 viewProjectionMatrix = projection * viewMatrix;
 	std::vector<std::future<PolygonizeWorkerThreadData*>> polygonizedNodeFutures;
+	
 	TerrainLODSelectionAndCullingAlgorithm::GetChunksToRender(frustum, outNodesToRender, &ParentNode, viewProjectionMatrix,
 	[&polygonizedNodeFutures, this](ITerrainOctreeNode* node) {
+		// every time the terrain chunk selection algorithm pushes a chunk to render that needs to be polygonized,
+		// queue an async operation to polygonize it 
 		polygonizedNodeFutures.push_back(Polygonizer->PolygonizeNodeAsync(node, this));
 	});
 
 	for (auto& future : polygonizedNodeFutures)
 	{
+		// upload the newly generated polygon data to a GPU buffer and free the raw vertex data
 		PolygonizeWorkerThreadData* data = future.get();
 		GraphicsAPIAdaptor->UploadNewlyPolygonizedToGPU(data);
 		data->MyAllocator->Free(data->GetPtrToDeallocate());
