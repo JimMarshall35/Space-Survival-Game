@@ -5,7 +5,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm.hpp>
-#include "TerrainVoxelVolume.h"
 #include <vector>
 #include "Camera.h"
 

@@ -58,3 +58,5 @@ Frustum CameraFunctionLibrary::CreateFrustumFromCamera(const Camera& cam, float 
 
 	return frustum;
 }
+
+

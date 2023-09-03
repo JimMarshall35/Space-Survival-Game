@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdlib>
 #include <string>
+#include <mutex>
 #include "CommonTypedefs.h"
 #include "Core.h"
 #include "IAllocator.h"
@@ -61,4 +62,7 @@ private:
 	u32 NumBlocks;
 	BasicHeapBlockHeader* EndBlock;
 	std::string Name;
+
+	std::mutex Mtx;
+
 };

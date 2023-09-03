@@ -1,4 +1,6 @@
+#pragma once
 #include "IAllocator.h"
+#include <mutex>
 
 class APP_API DefaultAllocator : public IAllocator
 {
@@ -12,4 +14,7 @@ public:
 
 	virtual void* Realloc(void* ptr, size_t newSize) override;
 
+private:
+
+	std::mutex Mtx;
 };

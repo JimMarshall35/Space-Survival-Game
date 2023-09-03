@@ -7,8 +7,12 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <ext.hpp>
-#include "TerrainOctree.h"
+#include "DebugVisualizerTerrainOctree.h"
+#include "SparseTerrainVoxelOctree.h"
 #include "DefaultAllocator.h"
+#include "TerrainPolygonizer.h"
+#include "TerrainOpenGLAdaptor.h"
+
 bool Application::bWantMouseInput;
 bool Application::bWantKeyboardInput;
 Camera Application::DebugCamera;
@@ -230,16 +234,28 @@ struct dummy
 void Application::Run()
 {
 	DefaultAllocator allocator;
-	TerrainVoxelVolume voxelVolume(&allocator);
 
 	/*voxelVolume.SetValue({ 1,2,3 }, 28);
 	i8 val = voxelVolume.GetValue({ 1,2,3 });
 	std::cout << "Value: " << (int)val << "\n";*/
-	DebugVisualizerTerrainOctree oct(&voxelVolume);
-	SparseTerrainVoxelOctree sparse(&allocator, 2048, 50, -50);
-	TerrainOctreeIndex octreeIndex = sparse.SetVoxelAt({ 100,200,300 }, 42);
-	i8 valFromGet = sparse.GetVoxelAt({ 101,200,300 });
-	SparseTerrainVoxelOctree::SparseTerrainOctreeNode* nodeFromIndex = sparse.FindNodeFromIndex(octreeIndex);
+	TerrainOpenGLAdaptor openGLAdaptor;
+	DebugVisualizerTerrainOctree oct;
+	TerrainPolygonizer polygonizer(&allocator);
+	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &openGLAdaptor, 2048, 50, -50);
+	//TerrainOctreeIndex octreeIndex = sparse.SetVoxelAt({ 100,200,300 }, 42);
+	//TerrainOctreeIndex octreeIndex2 = sparse.SetVoxelAt({ 0,1,2 }, 7);
+	//TerrainOctreeIndex octreeIndex3 = sparse.SetVoxelAt({ 0,2,4 }, 8);
+	//TerrainOctreeIndex octreeIndex4 = sparse.SetVoxelAt({ 501,600,123 }, -20);
+
+	//i8 valFromGet = sparse.GetVoxelAt({ 100,200,300 });
+	//i8 valFromGet2 = sparse.GetVoxelAt({ 0,1,2 });
+	//i8 valFromGet3 = sparse.GetVoxelAt({ 0,2,4 });
+	//i8 valFromGet4 = sparse.GetVoxelAt({ 501,600,123 });
+
+	//SparseTerrainVoxelOctree::SparseTerrainOctreeNode* nodeFromIndex = sparse.FindNodeFromIndex(octreeIndex);
+	//SparseTerrainVoxelOctree::SparseTerrainOctreeNode* nodeFromIndex2 = sparse.FindNodeFromIndex(octreeIndex2);
+	//SparseTerrainVoxelOctree::SparseTerrainOctreeNode* nodeFromIndex3 = sparse.FindNodeFromIndex(octreeIndex3);
+	//SparseTerrainVoxelOctree::SparseTerrainOctreeNode* nodeFromIndex4 = sparse.FindNodeFromIndex(octreeIndex4);
 	//glfwSetCursorPosCallback(Window, Application::CursorPositionCallback);
 	ImGuiIO& io = ImGui::GetIO();
 	while (!glfwWindowShouldClose(Window))
