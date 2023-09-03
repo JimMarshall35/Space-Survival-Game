@@ -16,7 +16,6 @@ struct PolygonizeWorkerThreadData
 	TerrainPosition* Positions;
 	TerrainNormal* Normals;
 	u32* Indices;
-	u32 IndicesSize;
 	u32 VerticesSize;
 	u32 IndicesSize;
 	u32 OutputtedVertices;

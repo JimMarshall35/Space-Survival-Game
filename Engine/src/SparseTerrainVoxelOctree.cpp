@@ -157,6 +157,7 @@ void SparseTerrainVoxelOctree::GetChunksToRender(const Camera& camera, float asp
 	glm::mat4 projection = glm::perspective(fovY, aspect, zNear, zFar);
 	glm::mat4 viewMatrix = camera.GetViewMatrix();
 	glm::mat4 viewProjectionMatrix = projection * viewMatrix;
+
 	std::vector<std::future<PolygonizeWorkerThreadData*>> polygonizedNodeFutures;
 	
 	TerrainLODSelectionAndCullingAlgorithm::GetChunksToRender(frustum, outNodesToRender, &ParentNode, viewProjectionMatrix,
@@ -168,7 +169,7 @@ void SparseTerrainVoxelOctree::GetChunksToRender(const Camera& camera, float asp
 
 	for (auto& future : polygonizedNodeFutures)
 	{
-		// upload the newly generated polygon data to a GPU buffer and free the raw vertex data
+		// upload the newly generated polygon data to a GPU buffer (fill in TerrainChunkMesh) and free the raw vertex data
 		PolygonizeWorkerThreadData* data = future.get();
 		GraphicsAPIAdaptor->UploadNewlyPolygonizedToGPU(data);
 		data->MyAllocator->Free(data->GetPtrToDeallocate());
