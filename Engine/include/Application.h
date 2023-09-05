@@ -23,8 +23,7 @@ public:
 
 	void Run();
 
-protected:
-
+	void SetWindowSize(GLFWwindow* window, int width, int height);
 
 private:
 	void DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree);
@@ -57,5 +56,9 @@ private:
 	
 	static bool bWantMouseInput;
 	static bool bWantKeyboardInput;
-
 };
+
+void FrameBufferSizeCallback(GLFWwindow* window, int width, int height)
+{
+	glViewport(0, 0, width, height);
+}

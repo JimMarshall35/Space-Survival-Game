@@ -43,9 +43,15 @@ Application::Application()
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 		throw("unable to context to OpenGL");
 
-	int screen_width, screen_height;
-	glfwGetFramebufferSize(Window, &screen_width, &screen_height);
-	glViewport(0, 0, screen_width, screen_height);
+	glfwSetWindowUserPointer(Window, this);
+	glfwSetFramebufferSizeCallback(Window, [](GLFWwindow* window, int width, int height)
+		{
+			if (Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window)))
+			{
+				app->SetWindowSize(window, width, height);
+			}
+		});
+	SetWindowSize(Window, ScreenWidth, ScreenHeight);
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -57,14 +63,6 @@ Application::Application()
 
 	// Initialise the Gizmos helper class
 	Gizmos::Create();
-
-
-	FOV = glm::pi<float>() * 0.25f;
-	Aspect = (float) ScreenWidth/ (float)ScreenHeight;
-	Near = 0.1f;
-	Far = 3000.0f;
-	// create a perspective projection matrix with a 90 degree field-of-view and widescreen aspect ratio
-	ProjectionMatrix = glm::perspective(FOV, Aspect, Near, Far);
 
 	CubeX = 0;
 	CubeY = 0;
@@ -222,7 +220,7 @@ void Application::CursorPositionCallback(GLFWwindow* window, double xpos, double
 	lastx = xpos;
 	lasty = ypos;
 	if (glfwGetMouseButton(window, 0) == GLFW_PRESS) {
-		DebugCamera.ProcessMouseMovement(dx, dy);
+		DebugCamera.ProcessMouseMovement(dx, -dy);
 	}
 }
 
@@ -324,8 +322,26 @@ void Application::Run()
 	}
 }
 
+void Application::SetWindowSize(GLFWwindow* window, int width, int height)
+{
+	glfwGetFramebufferSize(Window, &ScreenWidth, &ScreenHeight);
+	glViewport(0, 0, ScreenWidth, ScreenHeight);
+
+	FOV = glm::pi<float>() * 0.25f;
+	Aspect = (float)ScreenWidth / (float)ScreenHeight;
+	Near = 0.1f;
+	Far = 5000.0f;
+	// create a perspective projection matrix with a 90 degree field-of-view and widescreen aspect ratio
+	ProjectionMatrix = glm::perspective(FOV, Aspect, Near, Far);
+}
+
 void Application::DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree)
 {
 	VisibleNodes.clear();
 	terrainOctree.GetChunksToRender(DebugCamera, Aspect, FOV, Near, Far, VisibleNodes);
+}
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+	glViewport(0, 0, width, height);
 }
