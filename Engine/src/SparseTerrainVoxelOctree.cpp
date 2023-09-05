@@ -138,6 +138,25 @@ void SparseTerrainVoxelOctree::SetVoxelAt(const glm::ivec3& location, i8 value)
 	//
 }
 
+void SparseTerrainVoxelOctree::Clear()
+{
+	DeleteAllChildren(&ParentNode);
+}
+
+void SparseTerrainVoxelOctree::ResizeAndClear(const size_t newSize)
+{
+	DeleteAllChildren(&ParentNode);
+	ParentNode.SizeInVoxels = newSize;
+	ParentNode.MipLevel = OctreeFunctionLibrary::GetMipLevel(newSize);
+	Allocator->Free(ParentNodeStack);
+	IAllocator::NewArray<SparseTerrainOctreeNode*>(Allocator, ParentNode.MipLevel + 1);
+}
+
+size_t SparseTerrainVoxelOctree::GetSize() const
+{
+	return ParentNode.SizeInVoxels;
+}
+
 SparseTerrainVoxelOctree::SparseTerrainOctreeNode* SparseTerrainVoxelOctree::FindNodeFromIndex(TerrainOctreeIndex index)
 {
 	SparseTerrainOctreeNode* onNode = &ParentNode;

@@ -53,6 +53,12 @@ public:
 	
 	virtual void SetVoxelAt(const glm::ivec3& location, i8 value) override;
 
+	virtual void Clear() override;
+
+	virtual void ResizeAndClear(const size_t newSize) override;
+
+	virtual size_t GetSize() const override;
+
 	//IVoxelDataSource end
 
 	// return a list of TerrainOctreeNodes to render.

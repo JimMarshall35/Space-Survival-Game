@@ -93,6 +93,7 @@ float TerrainLODSelectionAndCullingAlgorithm::ViewportAreaHeuristic(ITerrainOctr
 			clipSpace.z / clipSpace.w,
 			clipSpace.w
 		};
+		// TODO: we should maybe clamp clipsace coords to the size of the screen here
 
 		// get bounding extents of clipped coords
 		if (clipSpace.x < minX)

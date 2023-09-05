@@ -10,4 +10,7 @@ public:
 	virtual i8 GetVoxelAt(const glm::ivec3& valueAt) = 0;
 	virtual void GetVoxelsForNode(ITerrainOctreeNode* node, i8* outVoxels) = 0;
 	virtual void SetVoxelAt(const glm::ivec3& location, i8 value) = 0;
+	virtual void Clear() = 0;
+	virtual void ResizeAndClear(const size_t newSize) = 0;
+	virtual size_t GetSize() const = 0;
 };
