@@ -34,10 +34,10 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	struct CellOutputHistory
 	{
 		u8 IndicesOutputted;
-		u32* Indices;
+		u32 Indices[4];
 	};
 
-	CellOutputHistory cellsOutput[BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE];
+	CellOutputHistory cellsOutputHistory[BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE];
 	u32 cellOutputTop = 0;
 
 	u8* data = (u8*)Allocator->Malloc(
@@ -81,6 +81,8 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 		return coordsToUse.x * TOTAL_SIDE_SIZE * TOTAL_SIDE_SIZE + coordsToUse.y * TOTAL_SIDE_SIZE + coordsToUse.z;
 	};
 
+	
+
 	for (i32 z = 0; z < BASE_CELL_SIZE; z++)
 	{
 		for (i32 y=0; y < BASE_CELL_SIZE; y++)
@@ -88,6 +90,11 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 			for (i32 x = 0; x < BASE_CELL_SIZE; x++)
 			{
 				static i8 corner[8];
+				// maintain a history for vertex reuse
+				CellOutputHistory& thisCellHistory = cellsOutputHistory[cellOutputTop++];
+				// starting point of indices
+				//thisCellHistory.Indices = rVal->Indices;
+				
 
 				// fill corner values - each corner of cell
 				u8 caseIndex = 0;
@@ -114,7 +121,23 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 					| (corner[7] & 0x80);
 				if ((caseCode ^ ((corner[7] >> 7) & 0xFF)) != 0)
 				{
+					
 					// Cell has a nontrivial triangulation.
+
+					enum class DirectionBitMask : u8
+					{
+						X = 1,
+						Y = 2,
+						Z = 4
+					};
+
+					enum class DirectionBitShift : u8
+					{
+						X = 0,
+						Y = 1,
+						Z = 2
+					};
+					// set validity mask
 
 					// The RegularCellData structure holds information about the triangulation
 					// used for a single equivalence class in the modified Marching Cubes algorithm,
@@ -127,12 +150,20 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 					long numVerts = cellData.GetVertexCount();
 					long numTris = cellData.GetTriangleCount();
 
-					// maintain a history for vertex reuse
-					CellOutputHistory& thisCell = cellsOutput[cellOutputTop];
-					// starting point of indices
-					thisCell.Indices = rVal->Indices;
-					thisCell.IndicesOutputted = 0;
-					
+					thisCellHistory.IndicesOutputted = numTris * 3;
+
+
+					/*
+						For cells occurring along the minimal boundaries of a block, the preceding cells needed for
+						vertex reuse may not exist. In these cases, we allow new vertex creation on additional edges of a
+						cell. While iterating through the cells in a block, a 3-bit mask is maintained whose bits indicate
+						whether corresponding bits in a direction code are valid.
+					*/
+					u8 validityMask = 0;
+					validityMask |= ((u8)(x > 0)) << (u32)DirectionBitShift::X;
+					validityMask |= ((u8)(y > 0)) << (u32)DirectionBitShift::Y;
+					validityMask |= ((u8)(z > 0)) << (u32)DirectionBitShift::Z;
+
 					for (i32 i = 0; i < numTris; i++)
 					{
 						for (i32 j = i * 3; i < i * 3 + 3; i++)
@@ -145,17 +176,7 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 							//The high nibble of this code indicates which direction to go in order to reach the correct preceding cell.
 							u8 directionNibble = (vertexReuseData >> 4);
 
-							/*
-								The bit values 1, 2, and 4 in this nibble indicate that we must subtract
-								one from the x, y, and /or z coordinate, respectively.These bits can be combined to indicate that
-								the preceding cell is diagonally adjacent across an edge or across the minimal corner
-							*/
-							glm::ivec3 cellPtr =
-							{
-								-((directionNibble) | 1),
-								-(((directionNibble) | 2) >> 1),
-								-(((directionNibble) | 4) >> 2),
-							};
+							
 
 							/*
 								The low nibble of the 8 - bit
@@ -175,7 +196,33 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 							else
 							{
 								// reuse vertex
+								
+								/*
+									When a direction code is used to locate a
+									preceding cell, it is first ANDed with the validity mask to determine whether the preceding cell
+									exists...
+								*/
+								if (directionNibble & validityMask)
+								{
+									/*
+										The bit values 1, 2, and 4 in this nibble indicate that we must subtract
+										one from the x, y, and /or z coordinate, respectively.These bits can be combined to indicate that
+										the preceding cell is diagonally adjacent across an edge or across the minimal corner
+									*/
+									CellOutputHistory& cellToShare = cellsOutputHistory[
+										BASE_CELL_SIZE * BASE_CELL_SIZE * (z - (directionNibble & (u8)DirectionBitMask::Z)) +
+											BASE_CELL_SIZE * (y - (directionNibble & (u8)DirectionBitMask::Y)) +
+											(x - (directionNibble & (u8)DirectionBitMask::X))
+									];
+									
+								}
+								else
+								{
+									/*
+										, and if not, the creation of a new vertex in the current cell is permitted. 
+									*/
 
+								}
 							}
 						}
 					}
