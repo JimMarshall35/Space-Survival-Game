@@ -1,4 +1,4 @@
-#include "TerrainPolygonizer.h"
+﻿#include "TerrainPolygonizer.h"
 #include "IAllocator.h"
 #include "TerrainDefs.h"
 #include "IVoxelDataSource.h"
@@ -31,13 +31,56 @@ std::future<PolygonizeWorkerThreadData*> TerrainPolygonizer::PolygonizeNodeAsync
 PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctreeNode* cellToPolygonize, IVoxelDataSource* source)
 {
 
+	/*
+	For each cell, we must have space to store four vertex indexes corresponding to the locations
+	shown in Figure 3.8(a) so that they can be reused by cells triangulated at a later time. It is never
+	the case that all four vertex slots are used at once (because a vertex lying on the interior of an
+	edge implies no vertex at the corner), but we must be able to identify the vertices using a fixed
+	indexing scheme. The vertices used by a cell are always owned by the cell itself, the preceding
+	cell in the same row, one of two adjacent cells in the preceding row, or one of four cells in the
+	preceding deck. We can therefore limit the vertex history that we store while processing a block
+	to two decks containing 16 16 cells each and ping-pong between them as the z coordinate is in-
+	cremented
+	*/
 	struct CellOutputHistory
 	{
-		u8 IndicesOutputted;
 		u32 Indices[4];
 	};
 
-	CellOutputHistory cellsOutputHistory[BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE];
+	CellOutputHistory cellsOutputHistoryDeck0[BASE_DECK_SIZE];
+	CellOutputHistory cellsOutputHistoryDeck1[BASE_DECK_SIZE];
+	
+	CellOutputHistory* currentFrontDeck = cellsOutputHistoryDeck0;
+	CellOutputHistory* currentRearDeck = cellsOutputHistoryDeck1;
+
+	CellOutputHistory* nextWritePtr = currentFrontDeck;
+
+	auto writeToHistoryRecord([&nextWritePtr, &currentRearDeck, &currentFrontDeck](const CellOutputHistory& historyToWrite) {
+		if (nextWritePtr + 1 >= currentFrontDeck + BASE_DECK_SIZE)
+		{
+			// swap decks
+			auto tempDeck = currentFrontDeck;
+			currentFrontDeck = currentRearDeck;
+			currentRearDeck = tempDeck;
+			nextWritePtr = currentFrontDeck;
+		}
+		*nextWritePtr++ = historyToWrite;
+	});
+
+	auto readFromHistoryRecord([&currentRearDeck, &currentFrontDeck](const glm::ivec3& offset, const glm::ivec3& currentCell) -> CellOutputHistory& {
+		
+		CellOutputHistory* deckToUse;
+		if (offset.z < 0)
+		{
+			deckToUse = currentRearDeck;
+		}
+		else 
+		{
+			deckToUse = currentFrontDeck;
+		}
+		return deckToUse[(currentCell.y + offset.y * BASE_CELL_SIZE) + (currentCell.x + offset.x)];
+	});
+	
 	u32 cellOutputTop = 0;
 
 	u8* data = (u8*)Allocator->Malloc(
@@ -66,6 +109,8 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	rVal->OutputtedVertices = 0;
 	rVal->OutputtedIndices = 0;
 	rVal->MyAllocator = Allocator;
+	
+
 
 	u32 verticesTop = 0;
 	u32 indicesTop = 0;
@@ -91,7 +136,6 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 			{
 				static i8 corner[8];
 				// maintain a history for vertex reuse
-				CellOutputHistory& thisCellHistory = cellsOutputHistory[cellOutputTop++];
 				// starting point of indices
 				//thisCellHistory.Indices = rVal->Indices;
 				
@@ -150,7 +194,7 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 					long numVerts = cellData.GetVertexCount();
 					long numTris = cellData.GetTriangleCount();
 
-					thisCellHistory.IndicesOutputted = numTris * 3;
+					//thisCellHistory.IndicesOutputted = numTris * 3;
 
 
 					/*
@@ -209,12 +253,14 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 										one from the x, y, and /or z coordinate, respectively.These bits can be combined to indicate that
 										the preceding cell is diagonally adjacent across an edge or across the minimal corner
 									*/
-									CellOutputHistory& cellToShare = cellsOutputHistory[
-										BASE_CELL_SIZE * BASE_CELL_SIZE * (z - (directionNibble & (u8)DirectionBitMask::Z)) +
-											BASE_CELL_SIZE * (y - (directionNibble & (u8)DirectionBitMask::Y)) +
-											(x - (directionNibble & (u8)DirectionBitMask::X))
-									];
-									
+									glm::ivec3 direction = {
+										-(directionNibble & 1),
+										-((directionNibble & 2) >> 1),
+										-((directionNibble & 4) >> 2)
+
+									};
+									CellOutputHistory& cellToShare = readFromHistoryRecord(direction, { x,y,z });
+									rVal->Indices[rVal->OutputtedIndices++] = cellToShare.Indices[vertexIndex];
 								}
 								else
 								{
