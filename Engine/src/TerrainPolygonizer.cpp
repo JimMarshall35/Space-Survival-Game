@@ -128,7 +128,7 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	};
 
 	
-	glm::vec3 blockBottomLeft = cellToPolygonize->GetBottomLeftCorner();
+	glm::ivec3 blockBottomLeft = cellToPolygonize->GetBottomLeftCorner();
 
 	for (i32 z = 0; z < BASE_CELL_SIZE; z++)
 	{
@@ -247,19 +247,22 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 								*/
 								u8 pointIndex0 = edgeData >> 4;
 								u8 pointIndex1 = edgeData & 0x0f;
-								static const glm::vec3 unflattenToFloatLUT[8] = {
-									glm::vec3{0,0,0},
-									glm::vec3{1,0,0},
-									glm::vec3{0,1,0},
-									glm::vec3{1,1,0},
-									glm::vec3{0,0,1},
-									glm::vec3{1,0,1},
-									glm::vec3{0,1,1},
-									glm::vec3{1,1,1},
+								static const glm::ivec3 unflattenToFloatLUT[8] = {
+									glm::ivec3{0,0,0},
+									glm::ivec3{1,0,0},
+									glm::ivec3{0,1,0},
+									glm::ivec3{1,1,0},
+									glm::ivec3{0,0,1},
+									glm::ivec3{1,0,1},
+									glm::ivec3{0,1,1},
+									glm::ivec3{1,1,1},
 								};
-								glm::vec3 cellBL = blockBottomLeft + glm::vec3{ x, y, z };
-								glm::vec3 point0 = cellBL + unflattenToFloatLUT[pointIndex0];
-								glm::vec3 point1 = cellBL + unflattenToFloatLUT[pointIndex1];
+								i32 scaleFactor = (float)cellToPolygonize->GetSizeInVoxels() / 16.0f;
+								glm::ivec3 cellBL = blockBottomLeft + glm::ivec3{ x, y, z };
+								glm::vec3 worldBL = blockBottomLeft + glm::ivec3{ x * scaleFactor, y* scaleFactor, z* scaleFactor };
+
+								glm::ivec3 point0 = cellBL + unflattenToFloatLUT[pointIndex0];
+								glm::ivec3 point1 = cellBL + unflattenToFloatLUT[pointIndex1];
 								i8 value0 = corner[pointIndex0];
 								i8 value1 = corner[pointIndex1];
 
@@ -284,8 +287,12 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 									return glm::mix(normal0, normal1, t);
 								};
 
-								glm::vec3 position = t * point0 + (1 - t) * point1;
-								glm::vec3 normal = getNormal(glm::ivec3(point0), glm::ivec3(point1), t, rVal->VoxelData);
+								
+								glm::vec3 worldPos0 = worldBL + glm::vec3(unflattenToFloatLUT[pointIndex0]) * (float)scaleFactor;
+								glm::vec3 worldPos1 = worldBL + glm::vec3(unflattenToFloatLUT[pointIndex1]) * (float)scaleFactor;
+
+								glm::vec3 position = t * worldPos0 + (1 - t) * worldPos1;
+								glm::vec3 normal = getNormal(point0, point1, t, rVal->VoxelData);
 								u32 thisVertIndex = rVal->OutputtedVertices;
 								rVal->Positions[rVal->OutputtedVertices] = position;
 								rVal->Normals[rVal->OutputtedVertices++] = normal;
