@@ -17,7 +17,6 @@ public:
 	virtual std::future<PolygonizeWorkerThreadData*> PolygonizeNodeAsync(ITerrainOctreeNode* node, IVoxelDataSource* source) override;
 	PolygonizeWorkerThreadData* PolygonizeCellSync(ITerrainOctreeNode* cellToPolygonize, IVoxelDataSource* source);
 private:
-	
 	//typedef 
 	
 

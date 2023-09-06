@@ -3,6 +3,7 @@
 #include "TerrainDefs.h"
 #include "IVoxelDataSource.h"
 #include "TransVoxel.h"
+#include "ITerrainOctreeNode.h"
 
 #define TERRAIN_CELL_VERTEX_ARRAY_SIZE 10000 // each worker can output this number of vertices maximum
 #define TERRAIN_CELL_INDEX_ARRAY_SIZE 10000 // each worker can output this number of vertices maximum
@@ -53,18 +54,18 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	CellOutputHistory* currentFrontDeck = cellsOutputHistoryDeck0;
 	CellOutputHistory* currentRearDeck = cellsOutputHistoryDeck1;
 
-	CellOutputHistory* nextWritePtr = currentFrontDeck;
+	CellOutputHistory* historyNextWritePtr = currentFrontDeck;
 
-	auto writeToHistoryRecord([&nextWritePtr, &currentRearDeck, &currentFrontDeck](const CellOutputHistory& historyToWrite) {
-		if (nextWritePtr + 1 >= currentFrontDeck + BASE_DECK_SIZE)
+	auto writeToHistoryRecord([&historyNextWritePtr, &currentRearDeck, &currentFrontDeck]() -> CellOutputHistory& {
+		if (historyNextWritePtr + 1 >= currentFrontDeck + BASE_DECK_SIZE)
 		{
 			// swap decks
 			auto tempDeck = currentFrontDeck;
 			currentFrontDeck = currentRearDeck;
 			currentRearDeck = tempDeck;
-			nextWritePtr = currentFrontDeck;
+			historyNextWritePtr = currentFrontDeck;
 		}
-		*nextWritePtr++ = historyToWrite;
+		return *historyNextWritePtr++;
 	});
 
 	auto readFromHistoryRecord([&currentRearDeck, &currentFrontDeck](const glm::ivec3& offset, const glm::ivec3& currentCell) -> CellOutputHistory& {
@@ -127,6 +128,7 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	};
 
 	
+	glm::vec3 blockBottomLeft = cellToPolygonize->GetBottomLeftCorner();
 
 	for (i32 z = 0; z < BASE_CELL_SIZE; z++)
 	{
@@ -136,8 +138,7 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 			{
 				static i8 corner[8];
 				// maintain a history for vertex reuse
-				// starting point of indices
-				//thisCellHistory.Indices = rVal->Indices;
+				CellOutputHistory& thisCellHistory = writeToHistoryRecord();
 				
 
 				// fill corner values - each corner of cell
@@ -232,9 +233,65 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 							/*
 								.The bit value 8 indicates that a new vertex is to be created for the current cell.
 							*/
-							if (directionNibble | 8)
+							if ((directionNibble | 8) || (directionNibble & validityMask))
 							{
 								// create vertex
+
+								/*
+								TODO:
+								the true giga-chad marching cubes implementer such as Lengyel keeps everything
+								as integers in this part of the algorithm to do the interpolation in fixed point,
+								and outputs fixed point fractions in the space of the cube, to convert to floating
+								point later on which would include adding the block bottom left corner then.
+								See listing 3.2
+								*/
+								u8 pointIndex0 = edgeData >> 4;
+								u8 pointIndex1 = edgeData & 0x0f;
+								static const glm::vec3 unflattenToFloatLUT[8] = {
+									glm::vec3{0,0,0},
+									glm::vec3{1,0,0},
+									glm::vec3{0,1,0},
+									glm::vec3{1,1,0},
+									glm::vec3{0,0,1},
+									glm::vec3{1,0,1},
+									glm::vec3{0,1,1},
+									glm::vec3{1,1,1},
+								};
+								glm::vec3 cellBL = blockBottomLeft + glm::vec3{ x, y, z };
+								glm::vec3 point0 = cellBL + unflattenToFloatLUT[pointIndex0];
+								glm::vec3 point1 = cellBL + unflattenToFloatLUT[pointIndex1];
+								i8 value0 = corner[pointIndex0];
+								i8 value1 = corner[pointIndex1];
+
+								float t = (float)value1 - ((float)value1 - (float)value0);
+
+								auto getNormal = [&flattenCellIndex](const glm::ivec3& corner0, glm::ivec3& corner1, float t, i8* voxelData) -> glm::vec3
+								{
+									glm::vec3 normal0 = glm::normalize(glm::vec3
+										{
+											voxelData[flattenCellIndex(corner0 + glm::ivec3{-1, 0, 0})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{1, 0, 0})],
+											voxelData[flattenCellIndex(corner0 + glm::ivec3{0, -1, 0})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 1, 0})],
+											voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 0, -1})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 0, 1})],
+										});
+
+									glm::vec3 normal1 = glm::normalize(glm::vec3
+										{
+											voxelData[flattenCellIndex(corner0 + glm::ivec3{-1, 0, 0})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{1, 0, 0})],
+											voxelData[flattenCellIndex(corner0 + glm::ivec3{0, -1, 0})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 1, 0})],
+											voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 0, -1})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 0, 1})],
+										});
+
+									return glm::mix(normal0, normal1, t);
+								};
+
+								glm::vec3 position = t * point0 + (1 - t) * point1;
+								glm::vec3 normal = getNormal(glm::ivec3(point0), glm::ivec3(point1), t, rVal->VoxelData);
+								u32 thisVertIndex = rVal->OutputtedVertices;
+								rVal->Positions[rVal->OutputtedVertices] = position;
+								rVal->Normals[rVal->OutputtedVertices++] = normal;
+								rVal->Indices[rVal->OutputtedIndices++] = thisVertIndex;
+								thisCellHistory.Indices[vertexIndex] = thisVertIndex;
+								// todo: some checking here + general asserts throughout
 
 							}
 							else
@@ -244,31 +301,22 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 								/*
 									When a direction code is used to locate a
 									preceding cell, it is first ANDed with the validity mask to determine whether the preceding cell
-									exists...
+									exists..., and if not, the creation of a new vertex in the current cell is permitted.
 								*/
-								if (directionNibble & validityMask)
-								{
-									/*
-										The bit values 1, 2, and 4 in this nibble indicate that we must subtract
-										one from the x, y, and /or z coordinate, respectively.These bits can be combined to indicate that
-										the preceding cell is diagonally adjacent across an edge or across the minimal corner
-									*/
-									glm::ivec3 direction = {
-										-(directionNibble & 1),
-										-((directionNibble & 2) >> 1),
-										-((directionNibble & 4) >> 2)
+								/*
+									The bit values 1, 2, and 4 in this nibble indicate that we must subtract
+									one from the x, y, and /or z coordinate, respectively.These bits can be combined to indicate that
+									the preceding cell is diagonally adjacent across an edge or across the minimal corner
+								*/
+								glm::ivec3 direction = {
+									-(directionNibble & 1),
+									-((directionNibble & 2) >> 1),
+									-((directionNibble & 4) >> 2)
 
-									};
-									CellOutputHistory& cellToShare = readFromHistoryRecord(direction, { x,y,z });
-									rVal->Indices[rVal->OutputtedIndices++] = cellToShare.Indices[vertexIndex];
-								}
-								else
-								{
-									/*
-										, and if not, the creation of a new vertex in the current cell is permitted. 
-									*/
-
-								}
+								};
+								CellOutputHistory& cellToShare = readFromHistoryRecord(direction, { x,y,z });
+								rVal->Indices[rVal->OutputtedIndices++] = cellToShare.Indices[vertexIndex];
+								
 							}
 						}
 					}
