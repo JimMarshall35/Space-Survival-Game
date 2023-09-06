@@ -210,9 +210,9 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 
 					for (i32 i = 0; i < numTris; i++)
 					{
-						for (i32 j = i * 3; i < i * 3 + 3; i++)
+						for (i32 j = i * 3; j < (i * 3) + 3; j++)
 						{
-							u16 thisVertex = vertexData[cellData.vertexIndex[i]];
+							u16 thisVertex = vertexData[cellData.vertexIndex[j]];
 							u8 edgeData = thisVertex & 0xff;
 
 							// Each edge of a cell is assigned an 8-bit code, as shown in Figure 3.8(b),that provides a mapping to a preceding celland the coincident edge on that preceding cell for which new vertex creation was allowed.
