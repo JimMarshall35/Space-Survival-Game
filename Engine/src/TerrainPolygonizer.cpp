@@ -276,9 +276,9 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 
 									glm::vec3 normal1 = glm::normalize(glm::vec3
 										{
-											voxelData[flattenCellIndex(corner0 + glm::ivec3{-1, 0, 0})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{1, 0, 0})],
-											voxelData[flattenCellIndex(corner0 + glm::ivec3{0, -1, 0})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 1, 0})],
-											voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 0, -1})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 0, 1})],
+											voxelData[flattenCellIndex(corner1 + glm::ivec3{-1, 0, 0})] - voxelData[flattenCellIndex(corner1 + glm::ivec3{1, 0, 0})],
+											voxelData[flattenCellIndex(corner1 + glm::ivec3{0, -1, 0})] - voxelData[flattenCellIndex(corner1 + glm::ivec3{0, 1, 0})],
+											voxelData[flattenCellIndex(corner1 + glm::ivec3{0, 0, -1})] - voxelData[flattenCellIndex(corner1 + glm::ivec3{0, 0, 1})],
 										});
 
 									return glm::mix(normal0, normal1, t);
