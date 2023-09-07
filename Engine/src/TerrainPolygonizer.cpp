@@ -86,8 +86,7 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 
 	u8* data = (u8*)Allocator->Malloc(
 		sizeof(PolygonizeWorkerThreadData) +
-		TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainNormal) +
-		TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainPosition) +
+		TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainVertex) +
 		TERRAIN_CELL_INDEX_ARRAY_SIZE * sizeof(u32) +
 		TOTAL_CELL_VOLUME_SIZE * sizeof(i8)
 	); // malloc everything in a single block
@@ -96,9 +95,7 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	u8* dataPtr = data + sizeof(PolygonizeWorkerThreadData);
 
 
-	rVal->Normals = (TerrainNormal*)dataPtr;
-	dataPtr += TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainNormal);
-	rVal->Positions = (TerrainPosition*)dataPtr;
+	rVal->Vertices = (TerrainVertex*)dataPtr;
 	dataPtr += TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainPosition);
 	rVal->Indices = (u32*)dataPtr;
 	dataPtr += TERRAIN_CELL_INDEX_ARRAY_SIZE * sizeof(u32);
@@ -294,8 +291,9 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 								glm::vec3 position = t * worldPos0 + (1 - t) * worldPos1;
 								glm::vec3 normal = getNormal(point0, point1, t, rVal->VoxelData);
 								u32 thisVertIndex = rVal->OutputtedVertices;
-								rVal->Positions[rVal->OutputtedVertices] = position;
-								rVal->Normals[rVal->OutputtedVertices++] = normal;
+								TerrainVertex& outputVert = rVal->Vertices[rVal->OutputtedVertices++];
+								outputVert.Position = position;
+								outputVert.Normal = normal;
 								rVal->Indices[rVal->OutputtedIndices++] = thisVertIndex;
 								thisCellHistory.Indices[vertexIndex] = thisVertIndex;
 								// todo: some checking here + general asserts throughout

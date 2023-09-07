@@ -35,6 +35,7 @@ public:
 		virtual const TerrainChunkMesh& GetTerrainChunkMesh() const override;
 		virtual void SetTerrainChunkMesh(const TerrainChunkMesh& mesh) override;
 		virtual bool NeedsRegenerating() const override { return Mesh.bNeedsRegenerating; }
+		virtual TerrainChunkMesh& GetTerrainChunkMeshMutable() override { return Mesh; }
 	};
 
 public:

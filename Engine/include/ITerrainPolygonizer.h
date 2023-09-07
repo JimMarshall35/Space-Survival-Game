@@ -11,10 +11,15 @@ class IAllocator;
 typedef glm::vec3 TerrainPosition;
 typedef glm::vec3 TerrainNormal;
 
+struct TerrainVertex
+{
+	TerrainPosition Position;
+	TerrainNormal Normal;
+};
+
 struct PolygonizeWorkerThreadData
 {
-	TerrainPosition* Positions;
-	TerrainNormal* Normals;
+	TerrainVertex* Vertices;
 	u32* Indices;
 	u32 VerticesSize;
 	u32 IndicesSize;

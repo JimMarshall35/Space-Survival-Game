@@ -11,7 +11,9 @@
 #include "SparseTerrainVoxelOctree.h"
 #include "DefaultAllocator.h"
 #include "TerrainPolygonizer.h"
-#include "TerrainOpenGLAdaptor.h"
+#include "TerrainRenderer.h"
+#include "TerrainMaterial.h"
+#include "TerrainLight.h"
 
 bool Application::bWantMouseInput;
 bool Application::bWantKeyboardInput;
@@ -236,10 +238,28 @@ void Application::Run()
 	/*voxelVolume.SetValue({ 1,2,3 }, 28);
 	i8 val = voxelVolume.GetValue({ 1,2,3 });
 	std::cout << "Value: " << (int)val << "\n";*/
-	TerrainOpenGLAdaptor openGLAdaptor;
+	TerrainRenderer renderer({
+		100000000,
+		GPUMemoryFreeingStrategy::OvershootFixedAmount,
+		10000
+		});
+
+	TerrainMaterial material;
+	material.AmbientStrength = 1.0;
+	material.Colour = { 0, 1.0, 0.0 };
+	material.Shinyness = 16;
+	material.SpecularStrength = 0.0;
+
+	TerrainLight light;
+	light.LightColor = { 1.0,1.0,1.0 };
+	light.LightPosition = { 1024, 1024, 2048 };
+
+	renderer.SetTerrainLight(light);
+	renderer.SetTerrainMaterial(material);
+
 	DebugVisualizerTerrainOctree oct;
 	TerrainPolygonizer polygonizer(&allocator);
-	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &openGLAdaptor, 2048, 50, -50);
+	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &renderer, 2048, 50, -50);
 	//TerrainOctreeIndex octreeIndex = sparse.SetVoxelAt({ 100,200,300 }, 42);
 	//TerrainOctreeIndex octreeIndex2 = sparse.SetVoxelAt({ 0,1,2 }, 7);
 	//TerrainOctreeIndex octreeIndex3 = sparse.SetVoxelAt({ 0,2,4 }, 8);
