@@ -179,6 +179,8 @@ void TerrainRenderer::FreeChunksToFit_UntilFixedMemoryAmount(u32 attemptedAlloca
         glDeleteVertexArrays(1, &mesh.VAO);
         glDeleteBuffers(2, mesh.Buffers);
 
+        LastRendered.erase(node);
+
         CurrentTerrainGPUAllocation -= renderData.SizeOfAllocation;
 
         if (CurrentTerrainGPUAllocation < (MemoryBudget - attemptedAllocation - std::get<u32>(FreeingData)))
@@ -210,6 +212,8 @@ void TerrainRenderer::FreeChunksToFit_UntilFixedTimeAgoRendered(u32 attemptedAll
         const TerrainChunkMesh& mesh = node->GetTerrainChunkMesh();
         glDeleteVertexArrays(1, &mesh.VAO);
         glDeleteBuffers(2, mesh.Buffers);
+
+        LastRendered.erase(node);
 
         CurrentTerrainGPUAllocation -= renderData.SizeOfAllocation;
 

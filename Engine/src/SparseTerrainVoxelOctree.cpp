@@ -9,6 +9,7 @@
 #include "TerrainDefs.h"
 #include "ITerrainPolygonizer.h"
 #include "ITerrainGraphicsAPIAdaptor.h"
+#include "ITerrainVoxelPopulator.h"
 #include <future>
 
 SparseTerrainVoxelOctree::SparseTerrainVoxelOctree(IAllocator* allocator, ITerrainPolygonizer* polygonizer, ITerrainGraphicsAPIAdaptor* graphicsAPIAdaptor, u32 sizeVoxels, i8 clampValueHigh, i8 clampValueLow)
@@ -23,6 +24,12 @@ SparseTerrainVoxelOctree::SparseTerrainVoxelOctree(IAllocator* allocator, ITerra
 {
 
 
+}
+
+SparseTerrainVoxelOctree::SparseTerrainVoxelOctree(IAllocator* allocator, ITerrainPolygonizer* polygonizer, ITerrainGraphicsAPIAdaptor* graphicsAPIAdaptor, u32 sizeVoxels, i8 clampValueHigh, i8 clampValueLow, ITerrainVoxelPopulator* populator)
+	:SparseTerrainVoxelOctree(allocator,polygonizer,graphicsAPIAdaptor,sizeVoxels,clampValueHigh,clampValueLow)
+{
+	populator->PopulateTerrain(this);
 }
 
 SparseTerrainVoxelOctree::~SparseTerrainVoxelOctree()

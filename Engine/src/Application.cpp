@@ -14,6 +14,7 @@
 #include "TerrainRenderer.h"
 #include "TerrainMaterial.h"
 #include "TerrainLight.h"
+#include "TestProceduralTerrainVoxelPopulator.h"
 
 bool Application::bWantMouseInput;
 bool Application::bWantKeyboardInput;
@@ -257,25 +258,13 @@ void Application::Run()
 	renderer.SetTerrainLight(light);
 	renderer.SetTerrainMaterial(material);
 
-	DebugVisualizerTerrainOctree oct;
 	TerrainPolygonizer polygonizer(&allocator);
-	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &renderer, 2048, 50, -50);
-	//TerrainOctreeIndex octreeIndex = sparse.SetVoxelAt({ 100,200,300 }, 42);
-	//TerrainOctreeIndex octreeIndex2 = sparse.SetVoxelAt({ 0,1,2 }, 7);
-	//TerrainOctreeIndex octreeIndex3 = sparse.SetVoxelAt({ 0,2,4 }, 8);
-	//TerrainOctreeIndex octreeIndex4 = sparse.SetVoxelAt({ 501,600,123 }, -20);
+	TestProceduralTerrainVoxelPopulator pop;
+	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &renderer, 2048, 10,-10, &pop);
 
-	//i8 valFromGet = sparse.GetVoxelAt({ 100,200,300 });
-	//i8 valFromGet2 = sparse.GetVoxelAt({ 0,1,2 });
-	//i8 valFromGet3 = sparse.GetVoxelAt({ 0,2,4 });
-	//i8 valFromGet4 = sparse.GetVoxelAt({ 501,600,123 });
-
-	//SparseTerrainVoxelOctree::SparseTerrainOctreeNode* nodeFromIndex = sparse.FindNodeFromIndex(octreeIndex);
-	//SparseTerrainVoxelOctree::SparseTerrainOctreeNode* nodeFromIndex2 = sparse.FindNodeFromIndex(octreeIndex2);
-	//SparseTerrainVoxelOctree::SparseTerrainOctreeNode* nodeFromIndex3 = sparse.FindNodeFromIndex(octreeIndex3);
-	//SparseTerrainVoxelOctree::SparseTerrainOctreeNode* nodeFromIndex4 = sparse.FindNodeFromIndex(octreeIndex4);
-	//glfwSetCursorPosCallback(Window, Application::CursorPositionCallback);
 	ImGuiIO& io = ImGui::GetIO();
+	std::vector<ITerrainOctreeNode*> outNodes;
+	glm::mat4 identity;
 	while (!glfwWindowShouldClose(Window))
 	{
 		bWantMouseInput = io.WantCaptureMouse;
@@ -284,6 +273,8 @@ void Application::Run()
 		glfwPollEvents();
 		//FreeCameraMovement(DebugC, 0.0024, 300);
 		ProcessInput(Window, 0.0024);
+		outNodes.clear();
+		sparse.GetChunksToRender(DebugCamera, Aspect, FOV, Near, Far, outNodes);
 
 
 		glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
@@ -293,12 +284,6 @@ void Application::Run()
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-
-		if (glfwGetKey(Window, 'J') == GLFW_PRESS)
-		{
-			DebugCaptureVisibleTerrainNodes(oct);
-		}
-
 		
 		
 		Gizmos::AddBox(
@@ -308,7 +293,9 @@ void Application::Run()
 		);
 
 		//VoxelVolume.DebugVisualiseVolume();
-		oct.DebugVisualiseChunks(VisibleNodes);
+		//oct.DebugVisualiseChunks(VisibleNodes);
+
+		renderer.RenderTerrainNodes(outNodes, identity, DebugCamera.GetViewMatrix(), ProjectionMatrix);
 		
 
 		Gizmos::Draw(DebugCamera.GetViewMatrix(), ProjectionMatrix);
@@ -323,15 +310,7 @@ void Application::Run()
 				ImGui::DragInt("Position Z", &CubeZ, 1.0f, -100, 100);
 
 				ImGui::TreePop();
-			}
-			float inputVal = oct.GetMinimumViewportAreaThreshold();
-			if(ImGui::InputFloat("MinimumViewportAreaThreshold", &inputVal))
-			{
-				oct.SetMinimumViewportAreaThreshold(inputVal);
-			}
-			ImGui::Checkbox("Fill Terrain Debug Boxes", &oct.bDebugFill);
-			ImGui::InputInt("Mip level to draw", &oct.DebugMipLevelToDraw);
-			
+			}			
 		}		
 		ImGui::End();
 		

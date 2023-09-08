@@ -13,6 +13,7 @@ class IAllocator;
 class Camera;
 class ITerrainPolygonizer;
 class ITerrainGraphicsAPIAdaptor;
+class ITerrainVoxelPopulator;
 
 class SparseTerrainVoxelOctree : public IVoxelDataSource
 {
@@ -41,6 +42,9 @@ public:
 public:
 
 	SparseTerrainVoxelOctree(IAllocator* allocator, ITerrainPolygonizer* polygonizer, ITerrainGraphicsAPIAdaptor* graphicsAPIAdaptor,u32 sizeVoxels, i8 clampValueHigh, i8 clampValueLow);
+
+	SparseTerrainVoxelOctree(IAllocator* allocator, ITerrainPolygonizer* polygonizer, ITerrainGraphicsAPIAdaptor* graphicsAPIAdaptor, u32 sizeVoxels, i8 clampValueHigh, i8 clampValueLow, ITerrainVoxelPopulator* populator);
+
 
 	~SparseTerrainVoxelOctree();
 
