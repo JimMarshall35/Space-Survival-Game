@@ -96,20 +96,21 @@ void SparseTerrainVoxelOctree::GetVoxelsForNode(ITerrainOctreeNode* node, i8* ou
 	u32 sizeInVoxels = node->GetSizeInVoxels();
 	const glm::ivec3& bottomLeft = node->GetBottomLeftCorner();
 	i32 stepSize = sizeInVoxels / 16;
-	i32 x = bottomLeft.x - POLYGONIZER_NEGATIVE_GUTTER * stepSize;
-	i32 y = bottomLeft.y - POLYGONIZER_NEGATIVE_GUTTER * stepSize;
-	i32 z = bottomLeft.z - POLYGONIZER_NEGATIVE_GUTTER * stepSize;
+	i32 initialX = bottomLeft.x - POLYGONIZER_NEGATIVE_GUTTER * stepSize;
+	i32 initialY = bottomLeft.y - POLYGONIZER_NEGATIVE_GUTTER * stepSize;
+	i32 initialZ = bottomLeft.z - POLYGONIZER_NEGATIVE_GUTTER * stepSize;
 	i32 endX = bottomLeft.x + sizeInVoxels + POLYGONIZER_POSITIVE_GUTTER * stepSize;
 	i32 endY = bottomLeft.y + sizeInVoxels + POLYGONIZER_POSITIVE_GUTTER * stepSize;
 	i32 endZ = bottomLeft.z + sizeInVoxels + POLYGONIZER_POSITIVE_GUTTER * stepSize;
 
-	for (x; x < endX; x += stepSize)
+	for (i32 x = initialX; x < endX; x += stepSize)
 	{
-		for (y; y < endY; y += stepSize)
+		for (i32 y = initialY; y < endY; y += stepSize)
 		{
-			for (z; z < endZ; z += stepSize)
+			for (i32 z = initialZ; z < endZ; z += stepSize)
 			{
-				*(outVoxels++) = GetVoxelAt(glm::ivec3{ x,y,z });
+				i8 value = GetVoxelAt(glm::ivec3{ x,y,z });
+				*(outVoxels++) = value;
 			}
 		}
 	}
@@ -117,20 +118,27 @@ void SparseTerrainVoxelOctree::GetVoxelsForNode(ITerrainOctreeNode* node, i8* ou
 
 i8 SparseTerrainVoxelOctree::GetVoxelAt(const glm::ivec3& location)
 {
+	glm::ivec3 locationToUse =
+	{
+		location.x < 0 ? 0 : location.x,
+		location.y < 0 ? 0 : location.y,
+		location.z < 0 ? 0 : location.z,
+	};
 	u8 outIndex;
 	SparseTerrainOctreeNode* onNode = &ParentNode;
-	if (!OctreeFunctionLibrary::IsPointInCube(location, onNode->BottomLeftCorner, onNode->SizeInVoxels))
+
+	if (!OctreeFunctionLibrary::IsPointInCube(locationToUse, onNode->BottomLeftCorner, onNode->SizeInVoxels))
 	{
 		return VoxelDefaultValue;
 	}
 	while (onNode->MipLevel != 0)
 	{
-		assert(OctreeFunctionLibrary::IsPointInCube(location, onNode->BottomLeftCorner, onNode->SizeInVoxels));
+		assert(OctreeFunctionLibrary::IsPointInCube(locationToUse, onNode->BottomLeftCorner, onNode->SizeInVoxels));
 		i32 childDims = onNode->SizeInVoxels / 2;
 		i32 childMipLevel = onNode->MipLevel - 1;
 
 		// find which child the point is in and set onNode to that child
-		if (auto child = FindChildContainingPoint(onNode, location, outIndex, false))
+		if (auto child = FindChildContainingPoint(onNode, locationToUse, outIndex, false))
 		{
 			onNode = child;
 		}
@@ -140,7 +148,7 @@ i8 SparseTerrainVoxelOctree::GetVoxelAt(const glm::ivec3& location)
 		}
 	}
 	assert(onNode->VoxelData);
-	glm::ivec3 voxelDataLocation = GetLocationWithinMipZeroCellFromWorldLocation(onNode, location);
+	glm::ivec3 voxelDataLocation = GetLocationWithinMipZeroCellFromWorldLocation(onNode, locationToUse);
 	size_t voxelDataIndex = voxelDataLocation.x + BASE_CELL_SIZE * voxelDataLocation.y + BASE_CELL_SIZE * BASE_CELL_SIZE * voxelDataLocation.y;
 	return onNode->VoxelData[voxelDataIndex];
 }

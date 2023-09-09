@@ -46,7 +46,7 @@ void TerrainLODSelectionAndCullingAlgorithm::GetChunksToRender(const Frustum& fr
 				}
 				else
 				{
-					GetChunksToRender(frustum, outNodesToRender, child, viewProjectionMatrix);
+					GetChunksToRender(frustum, outNodesToRender, child, viewProjectionMatrix, needsRegeneratingCallback);
 				}
 			}
 		}
