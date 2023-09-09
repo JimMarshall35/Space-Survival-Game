@@ -19,7 +19,8 @@ void TerrainLODSelectionAndCullingAlgorithm::GetChunksToRender(const Frustum& fr
 	*/
 	for (int i = 0; i < 8; i++)
 	{
-		if (ITerrainOctreeNode* child = onNode->GetChild(i))
+		ITerrainOctreeNode* child = onNode->GetChild(i);
+		if (child != nullptr)
 		{
 			const glm::ivec3& bottomLeft = child->GetBottomLeftCorner();
 			u32 sizeInVoxels = child->GetSizeInVoxels();

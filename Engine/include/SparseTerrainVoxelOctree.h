@@ -29,7 +29,7 @@ public:
 		TerrainChunkMesh Mesh;
 		u32 SizeInVoxels;
 		i8* VoxelData = nullptr; // only set when MipLevel = 0
-		virtual ITerrainOctreeNode* GetChild(u8 child)const override { return Children[child]; }
+		virtual ITerrainOctreeNode* GetChild(u8 child)const override { return static_cast<ITerrainOctreeNode*>(Children[child]); }
 		virtual const ivec3& GetBottomLeftCorner()const override { return BottomLeftCorner; }
 		virtual u32 GetSizeInVoxels() const override { return SizeInVoxels; }
 		virtual u32 GetMipLevel() const override { return MipLevel; }

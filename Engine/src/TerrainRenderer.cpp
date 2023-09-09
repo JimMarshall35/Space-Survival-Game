@@ -9,32 +9,32 @@
 #include "TerrainMaterial.h"
 
 static const char* gTerrainShaderCodeVert =
-"#version 330 core"
-"layout(location = 0) in vec3 aPos;"
-"layout(location = 1) in vec3 aNormal;"
+"#version 330 core""\n"
+"layout(location = 0) in vec3 aPos;""\n"
+"layout(location = 1) in vec3 aNormal;""\n"
 
-"out vec3 FragPos;"
-"out vec3 FragWorldPos;"
-"out vec3 Normal;"
-"out vec3 LightPos;"
-"out vec3 WorldSpaceNormal;"
+"out vec3 FragPos;""\n"
+"out vec3 FragWorldPos;""\n"
+"out vec3 Normal;""\n"
+"out vec3 LightPos;""\n"
+"out vec3 WorldSpaceNormal;""\n"
 
-"uniform vec3 lightPos; // we now define the uniform in the vertex shader and pass the 'view space' lightpos to the fragment shader. lightPos is currently in world space."
+"uniform vec3 lightPos; // we now define the uniform in the vertex shader and pass the 'view space' lightpos to the fragment shader. lightPos is currently in world space.""\n"
 
-"uniform mat4 model;"
-"uniform mat4 view;"
-"uniform mat4 projection;"
+"uniform mat4 model;""\n"
+"uniform mat4 view;""\n"
+"uniform mat4 projection;""\n"
 
-"void main()"
-"{"
-    "gl_Position = projection * view * model * vec4(aPos, 1.0);"
-    "FragPos = vec3(view * model * vec4(aPos, 1.0));"
-    "FragWorldPos = vec3(model * vec4(aPos, 1.0));"
-    "Normal = mat3(transpose(inverse(view * model))) * aNormal;"
-    "WorldSpaceNormal = vec3(model * vec4(aNormal, 0.0));"
+"void main()""\n"
+"{""\n"
+    "gl_Position = projection * view * model * vec4(aPos, 1.0);""\n"
+    "FragPos = vec3(view * model * vec4(aPos, 1.0));""\n"
+    "FragWorldPos = vec3(model * vec4(aPos, 1.0));""\n"
+    "Normal = mat3(transpose(inverse(view * model))) * aNormal;""\n"
+    "WorldSpaceNormal = vec3(model * vec4(aNormal, 0.0));""\n"
 
-    "LightPos = vec3(view * vec4(lightPos, 1.0)); // Transform world-space light position to view-space light position"
-"}";
+    "LightPos = vec3(view * vec4(lightPos, 1.0)); // Transform world-space light position to view-space light position""\n"
+"}""\n";
 
 static const char* gTerrainShaderCodeFrag =
 "#version 330 core"
@@ -43,7 +43,7 @@ static const char* gTerrainShaderCodeFrag =
 "in vec3 FragPos;"
 "in vec3 FragWorldPos;"
 "in vec3 Normal;"
-"in vec3 LightPos;   // extra in variable, since we need the light position in view space we calculate this in the vertex shader"
+"in vec3 LightPos;   // extra in variable, since we need the light position in view space we calculate this in the vertex shader""\n"
 "in vec3 WorldSpaceNormal;"
 
 "uniform vec3 lightColor;"
@@ -80,22 +80,22 @@ static const char* gTerrainShaderCodeFrag =
 
 "void main()"
 "{"
-    "// ambient"
-    "//float ambientStrength = 0.2;"
+    "// ambient""\n"
+    "//float ambientStrength = 0.2;""\n"
     "vec3 ambient = ambientStrength * lightColor;"
     //"vec3 grassPixel = LookupTextureTriplanar(MossTexture);"
     //"vec3 rockPixel = LookupTextureTriplanar(RockTexture);"
     "vec3 pixel_colour = vec3(0.0f,1.0f,0.0f);"//(FragWorldPos.y < GRASS_ROCK_BOUNDARY) ? grassPixel : mix(grassPixel, rockPixel, clamp(((FragWorldPos.y - GRASS_ROCK_BOUNDARY) / ROCK_GRASS_FADE), 0.0, 1.0));"
 
-    "// diffuse "
+    "// diffuse ""\n"
     "vec3 norm = normalize(Normal);"
     "vec3 lightDir = normalize(LightPos - FragPos);"
     "float diff = max(dot(norm, lightDir), 0.0);"
     "vec3 diffuse = diff * lightColor;"
 
-    "// specular"
+    "// specular""\n"
     "//float specularStrength = 0.2;"
-    "vec3 viewDir = normalize(-FragPos); // the viewer is always at (0,0,0) in view-space, so viewDir is (0,0,0) - Position => -Position"
+    "vec3 viewDir = normalize(-FragPos); // the viewer is always at (0,0,0) in view-space, so viewDir is (0,0,0) - Position => -Position""\n"
     "vec3 reflectDir = reflect(-lightDir, norm);"
     "float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);"
     "vec3 specular = specularStrength * spec * lightColor;"

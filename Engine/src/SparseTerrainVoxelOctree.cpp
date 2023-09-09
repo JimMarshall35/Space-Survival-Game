@@ -11,6 +11,7 @@
 #include "ITerrainGraphicsAPIAdaptor.h"
 #include "ITerrainVoxelPopulator.h"
 #include <future>
+#include <new>
 
 SparseTerrainVoxelOctree::SparseTerrainVoxelOctree(IAllocator* allocator, ITerrainPolygonizer* polygonizer, ITerrainGraphicsAPIAdaptor* graphicsAPIAdaptor, u32 sizeVoxels, i8 clampValueHigh, i8 clampValueLow)
 	:Allocator(allocator),
@@ -64,7 +65,12 @@ TerrainOctreeIndex SparseTerrainVoxelOctree::SetVoxelAt_Internal(const glm::ivec
 	{
 		static const size_t voxelDataAllocationSize = BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE;
 		onNode->VoxelData = IAllocator::NewArray<i8>(Allocator, voxelDataAllocationSize);
+		
 		memset(onNode->VoxelData, VoxelDefaultValue, voxelDataAllocationSize);
+		for (i32 i = 0; i < 8; i++)
+		{
+			onNode->Children[i] = nullptr;
+		}
 	}
 	glm::ivec3 voxelDataLocation = GetLocationWithinMipZeroCellFromWorldLocation(onNode, location);
 
@@ -228,7 +234,7 @@ SparseTerrainVoxelOctree::SparseTerrainOctreeNode* SparseTerrainVoxelOctree::Fin
 					if (!onNode->Children[i] && allocateNewIfNull)
 					{
 						onNode->Children[i] = IAllocator::New<SparseTerrainOctreeNode>(Allocator);
-						*onNode->Children[i] = SparseTerrainOctreeNode(childMipLevel, childBL, childDims);
+						new(onNode->Children[i])SparseTerrainOctreeNode(childMipLevel, childBL, childDims);
 					}
 					outChildIndex = i;
 					return onNode->Children[i];

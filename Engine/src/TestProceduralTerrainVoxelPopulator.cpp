@@ -12,7 +12,7 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 			for (i32 x = 0; x < size; x++)
 			{
 				i8 value;
-				value = (((float)y - 1024.0f) / 1024.0f) * 127.0f;
+				value = (((float)y - 1024.5f) / 1024.0f) * 127.0f;
 				dataSrcToWriteTo->SetVoxelAt({ x,y,z }, value);
 			}
 		}
