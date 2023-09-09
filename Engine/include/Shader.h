@@ -26,8 +26,10 @@ public:
     Shader() {};
     Shader(const char* vertexPath, const char* fragmentPath, const char* geometryPath = nullptr)
     {
-
-        LoadFromFile(vertexPath, fragmentPath, geometryPath);
+        if (geometryPath)
+            LoadFromString(vertexPath, fragmentPath, geometryPath);
+        else
+            LoadFromString(vertexPath, fragmentPath);
     }
 
     void LoadFromFile(const char* vertexPath, const char* fragmentPath, const char* geometryPath = nullptr) {
