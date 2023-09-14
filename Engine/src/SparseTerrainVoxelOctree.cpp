@@ -103,11 +103,11 @@ void SparseTerrainVoxelOctree::GetVoxelsForNode(ITerrainOctreeNode* node, i8* ou
 	i32 endY = bottomLeft.y + sizeInVoxels + POLYGONIZER_POSITIVE_GUTTER * stepSize;
 	i32 endZ = bottomLeft.z + sizeInVoxels + POLYGONIZER_POSITIVE_GUTTER * stepSize;
 
-	for (i32 x = initialX; x < endX; x += stepSize)
+	for (i32 z = initialZ; z < endZ; z += stepSize)
 	{
 		for (i32 y = initialY; y < endY; y += stepSize)
 		{
-			for (i32 z = initialZ; z < endZ; z += stepSize)
+			for (i32 x = initialX; x < endX; x += stepSize)
 			{
 				i8 value = GetVoxelAt(glm::ivec3{ x,y,z });
 				*(outVoxels++) = value;
@@ -212,6 +212,8 @@ void SparseTerrainVoxelOctree::GetChunksToRender(const Camera& camera, float asp
 		// upload the newly generated polygon data to a GPU buffer (fill in TerrainChunkMesh) and free the raw vertex data
 		PolygonizeWorkerThreadData* data = future.get();
 		GraphicsAPIAdaptor->UploadNewlyPolygonizedToGPU(data);
+		TerrainChunkMesh& mesh = data->Node->GetTerrainChunkMeshMutable();
+		mesh.bNeedsRegenerating = false;
 		data->MyAllocator->Free(data->GetPtrToDeallocate());
 	}
 

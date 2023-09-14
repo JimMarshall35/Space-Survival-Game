@@ -264,7 +264,7 @@ void Application::Run()
 
 	ImGuiIO& io = ImGui::GetIO();
 	std::vector<ITerrainOctreeNode*> outNodes;
-	glm::mat4 identity;
+	glm::mat4 identity(1.0f);
 	while (!glfwWindowShouldClose(Window))
 	{
 		bWantMouseInput = io.WantCaptureMouse;

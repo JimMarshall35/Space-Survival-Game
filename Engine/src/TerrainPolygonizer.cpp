@@ -8,6 +8,12 @@
 #define TERRAIN_CELL_VERTEX_ARRAY_SIZE 10000 // each worker can output this number of vertices maximum
 #define TERRAIN_CELL_INDEX_ARRAY_SIZE 10000 // each worker can output this number of vertices maximum
 
+#define TERRAIN_FIXED_FRACTION_SIZE_BITS 8
+#define TERRAIN_FIXED_FRACTION_MAX 0xff
+
+#define Q 8
+#define K   (1 << (Q - 1))
+
 TerrainPolygonizer::TerrainPolygonizer(IAllocator* allocator)
 	:Allocator(allocator),
 	ThreadPool(std::thread::hardware_concurrency())
@@ -46,6 +52,7 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	struct CellOutputHistory
 	{
 		u32 Indices[4];
+		bool Occupied = false;
 	};
 
 	CellOutputHistory cellsOutputHistoryDeck0[BASE_DECK_SIZE];
@@ -56,7 +63,8 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 
 	CellOutputHistory* historyNextWritePtr = currentFrontDeck;
 
-	auto writeToHistoryRecord([&historyNextWritePtr, &currentRearDeck, &currentFrontDeck]() -> CellOutputHistory& {
+	auto writeToHistoryRecord([&historyNextWritePtr, &currentRearDeck, &currentFrontDeck]() -> CellOutputHistory&
+	{
 		if (historyNextWritePtr + 1 >= currentFrontDeck + BASE_DECK_SIZE)
 		{
 			// swap decks
@@ -68,7 +76,8 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 		return *historyNextWritePtr++;
 	});
 
-	auto readFromHistoryRecord([&currentRearDeck, &currentFrontDeck](const glm::ivec3& offset, const glm::ivec3& currentCell) -> CellOutputHistory& {
+	auto readFromHistoryRecord([&currentRearDeck, &currentFrontDeck](const glm::ivec3& offset, const glm::ivec3& currentCell) -> CellOutputHistory&
+	{
 		
 		CellOutputHistory* deckToUse;
 		if (offset.z < 0)
@@ -79,8 +88,10 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 		{
 			deckToUse = currentFrontDeck;
 		}
-		return deckToUse[(currentCell.y + offset.y * BASE_CELL_SIZE) + (currentCell.x + offset.x)];
+		return deckToUse[((currentCell.y + offset.y) * BASE_CELL_SIZE) + (currentCell.x + offset.x)];
 	});
+
+	
 	
 	u32 cellOutputTop = 0;
 
@@ -94,9 +105,9 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	PolygonizeWorkerThreadData* rVal = (PolygonizeWorkerThreadData*)data;
 	u8* dataPtr = data + sizeof(PolygonizeWorkerThreadData);
 
-
+	TerrainVertexFixedPoint* fixedPointVerts = (TerrainVertexFixedPoint*)dataPtr;
 	rVal->Vertices = (TerrainVertex*)dataPtr;
-	dataPtr += TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainPosition);
+	dataPtr += TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainVertex);
 	rVal->Indices = (u32*)dataPtr;
 	dataPtr += TERRAIN_CELL_INDEX_ARRAY_SIZE * sizeof(u32);
 	rVal->VoxelData = (i8*)dataPtr;
@@ -107,22 +118,17 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 	rVal->OutputtedVertices = 0;
 	rVal->OutputtedIndices = 0;
 	rVal->MyAllocator = Allocator;
-	
+
+	auto GetVoxelValueAt = [rVal](u8 x, u8 y, u8 z) -> i8
+	{
+		return rVal->VoxelData[TOTAL_DECK_SIZE * z + TOTAL_CELL_SIZE * y + x];
+	};
 
 
 	u32 verticesTop = 0;
 	u32 indicesTop = 0;
 
 	source->GetVoxelsForNode(cellToPolygonize, rVal->VoxelData);
-
-	// create polygons from voxel data here:
-	auto flattenCellIndex = [](const glm::ivec3& coords) -> u32
-	{
-		// account for gutters
-		const glm::ivec3 coordsToUse = coords + glm::ivec3{POLYGONIZER_NEGATIVE_GUTTER, POLYGONIZER_NEGATIVE_GUTTER, POLYGONIZER_NEGATIVE_GUTTER};
-		// flatten. TODO: unify order of indices used in GetVoxelsForNode to the type used by the marching cubes algorithm below, eg for z for y for x with x*1 + y*2 + z*4
-		return coordsToUse.x * TOTAL_SIDE_SIZE * TOTAL_SIDE_SIZE + coordsToUse.y * TOTAL_SIDE_SIZE + coordsToUse.z;
-	};
 
 	
 	glm::ivec3 blockBottomLeft = cellToPolygonize->GetBottomLeftCorner();
@@ -136,18 +142,24 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 				static i8 corner[8];
 				// maintain a history for vertex reuse
 				CellOutputHistory& thisCellHistory = writeToHistoryRecord();
+				thisCellHistory.Indices[0] = INT_MAX;
+				thisCellHistory.Indices[1] = INT_MAX;
+				thisCellHistory.Indices[2] = INT_MAX;
+				thisCellHistory.Indices[3] = INT_MAX;
+
+				thisCellHistory.Occupied = false;
 				
 
 				// fill corner values - each corner of cell
 				u8 caseIndex = 0;
-				for (i32 cellZ = 0; cellZ < 2; cellZ++)
+				for (u8 cellZ = 0; cellZ < 2; cellZ++)
 				{
-					for (i32 cellY = 0; cellY < 2; cellY++)
+					for (u8 cellY = 0; cellY < 2; cellY++)
 					{
-						for (i32 cellX = 0; cellX < 2; cellX++)
+						for (u8 cellX = 0; cellX < 2; cellX++)
 						{
-							u32 cellI = cellZ * 4 + cellY * 2 + cellX;
-							corner[cellI] = rVal->VoxelData[flattenCellIndex({ x + cellX, y + cellY, z + cellZ })];
+							u8 cellI = cellZ * 4 + cellY * 2 + cellX;
+							corner[cellI] = GetVoxelValueAt(x + cellX, y + cellY, z + cellZ);
 						}
 					}
 				}
@@ -201,49 +213,48 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 						cell. While iterating through the cells in a block, a 3-bit mask is maintained whose bits indicate
 						whether corresponding bits in a direction code are valid.
 					*/
-					u8 validityMask = 0;
-					validityMask |= ((u8)(x > 0)) << (u32)DirectionBitShift::X;
-					validityMask |= ((u8)(y > 0)) << (u32)DirectionBitShift::Y;
-					validityMask |= ((u8)(z > 0)) << (u32)DirectionBitShift::Z;
+					
+		 			auto ConstructValidityMask = [readFromHistoryRecord](const glm::ivec3& position) -> u8
+					{
+						u8 validityMask = 0;
+						validityMask |= (u8)readFromHistoryRecord({ -1, 0, 0 }, position).Occupied << (u8)DirectionBitShift::X;
+						validityMask |= (u8)readFromHistoryRecord({ 0, -1, 0 }, position).Occupied << (u8)DirectionBitShift::Y;
+						validityMask |= (u8)readFromHistoryRecord({ 0, 0, -1 }, position).Occupied << (u8)DirectionBitShift::Z;
+						return validityMask;
+					};
+
+					u32 validityMask = ConstructValidityMask({ x,y,z });
 
 					for (i32 i = 0; i < numTris; i++)
 					{
 						for (i32 j = i * 3; j < (i * 3) + 3; j++)
 						{
 							u16 thisVertex = vertexData[cellData.vertexIndex[j]];
-							u8 edgeData = thisVertex & 0xff;
+							u8 edgeCode = thisVertex & 0xff;
 
 							// Each edge of a cell is assigned an 8-bit code, as shown in Figure 3.8(b),that provides a mapping to a preceding celland the coincident edge on that preceding cell for which new vertex creation was allowed.
-							u8 vertexReuseData = (thisVertex >> 8);
 							//The high nibble of this code indicates which direction to go in order to reach the correct preceding cell.
-							u8 directionNibble = (vertexReuseData >> 4);
-
-							
+							u8 directionNibble = (thisVertex & 0x0F00) >> 8;
 
 							/*
 								The low nibble of the 8 - bit
 								code gives the index of the vertex in the preceding cell that should be reused or the index of the
 								vertex in the current cell that should be created.
 							*/
-							u8 vertexIndex = vertexReuseData & 0x0f;
+							u8 vertexIndex = (thisVertex & 0xF000) >> 12;
 
-							/*
-								.The bit value 8 indicates that a new vertex is to be created for the current cell.
-							*/
-							if ((directionNibble | 8) || (directionNibble & validityMask))
+							
+							auto OutputVertexFixedPoint = [&]()
 							{
-								// create vertex
-
-								/*
-								TODO:
-								the true giga-chad marching cubes implementer such as Lengyel keeps everything
-								as integers in this part of the algorithm to do the interpolation in fixed point,
-								and outputs fixed point fractions in the space of the cube, to convert to floating
-								point later on which would include adding the block bottom left corner then.
-								See listing 3.2
-								*/
-								u8 pointIndex0 = edgeData >> 4;
-								u8 pointIndex1 = edgeData & 0x0f;
+								u16 v0 = (edgeCode >> 4) & 0x0F;
+								u16 v1 = edgeCode & 0x0F;
+								i32 d0 = corner[v0];
+								i32 d1 = corner[v1];
+								if (!(d1 - d0))
+								{
+									return;
+								}
+								i32 t = (d1 << 8) / (d1 - d0);////////////(d1 - d0) ? (d1 << 8) / (d1 - d0) : 0;
 								static const glm::ivec3 unflattenToFloatLUT[8] = {
 									glm::ivec3{0,0,0},
 									glm::ivec3{1,0,0},
@@ -254,60 +265,41 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 									glm::ivec3{0,1,1},
 									glm::ivec3{1,1,1},
 								};
-								i32 scaleFactor = (float)cellToPolygonize->GetSizeInVoxels() / 16.0f;
-								glm::ivec3 cellBL = blockBottomLeft + glm::ivec3{ x, y, z };
-								glm::vec3 worldBL = blockBottomLeft + glm::ivec3{ x * scaleFactor, y* scaleFactor, z* scaleFactor };
+								glm::ivec3 edgeOffset0 = unflattenToFloatLUT[v0];
+								glm::ivec3 edgeOffset1 = unflattenToFloatLUT[v1];
 
-								glm::ivec3 point0 = cellBL + unflattenToFloatLUT[pointIndex0];
-								glm::ivec3 point1 = cellBL + unflattenToFloatLUT[pointIndex1];
-								i8 value0 = corner[pointIndex0];
-								i8 value1 = corner[pointIndex1];
-
-								float t = (float)value1 - ((float)value1 - (float)value0);
-
-								auto getNormal = [&flattenCellIndex](const glm::ivec3& corner0, glm::ivec3& corner1, float t, i8* voxelData) -> glm::vec3
+								glm::ivec3 P0 =
 								{
-									glm::vec3 normal0 = glm::normalize(glm::vec3
-										{
-											voxelData[flattenCellIndex(corner0 + glm::ivec3{-1, 0, 0})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{1, 0, 0})],
-											voxelData[flattenCellIndex(corner0 + glm::ivec3{0, -1, 0})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 1, 0})],
-											voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 0, -1})] - voxelData[flattenCellIndex(corner0 + glm::ivec3{0, 0, 1})],
-										});
-
-									glm::vec3 normal1 = glm::normalize(glm::vec3
-										{
-											voxelData[flattenCellIndex(corner1 + glm::ivec3{-1, 0, 0})] - voxelData[flattenCellIndex(corner1 + glm::ivec3{1, 0, 0})],
-											voxelData[flattenCellIndex(corner1 + glm::ivec3{0, -1, 0})] - voxelData[flattenCellIndex(corner1 + glm::ivec3{0, 1, 0})],
-											voxelData[flattenCellIndex(corner1 + glm::ivec3{0, 0, -1})] - voxelData[flattenCellIndex(corner1 + glm::ivec3{0, 0, 1})],
-										});
-
-									return glm::mix(normal0, normal1, t);
+									(x + edgeOffset0.x) << 8,
+									(y + edgeOffset0.y) << 8,
+									(z + edgeOffset0.z) << 8
 								};
+								glm::ivec3 P1 =
+								{
+									(x + edgeOffset1.x) << 8,
+									(y + edgeOffset1.y) << 8,
+									(z + edgeOffset1.z) << 8
+								};
+								// Vertex lies in the interior of the edge.
+								i32 u = 0x0100 - t;
+								i32 thisVertexIndex = rVal->OutputtedVertices++;
+								rVal->Indices[rVal->OutputtedIndices++] = thisVertexIndex;
+								fixedPointVerts[thisVertexIndex].Position =
+								{
+									((t * P0.x) >> 8) + ((u * P1.x) >> 8),
+									((t * P0.y) >> 8) + ((u * P1.y) >> 8),
+									((t * P0.z) >> 8) + ((u * P1.z) >> 8),
+								};
+								thisCellHistory.Indices[vertexIndex] = thisVertexIndex;
+								thisCellHistory.Occupied = true;
+							};
 
-								
-								glm::vec3 worldPos0 = worldBL + glm::vec3(unflattenToFloatLUT[pointIndex0]) * (float)scaleFactor;
-								glm::vec3 worldPos1 = worldBL + glm::vec3(unflattenToFloatLUT[pointIndex1]) * (float)scaleFactor;
-
-								glm::vec3 position = t * worldPos0 + (1 - t) * worldPos1;
-								glm::vec3 normal = getNormal(point0, point1, t, rVal->VoxelData);
-								u32 thisVertIndex = rVal->OutputtedVertices;
-								TerrainVertex& outputVert = rVal->Vertices[rVal->OutputtedVertices++];
-								outputVert.Position = position;
-								outputVert.Normal = normal;
-								rVal->Indices[rVal->OutputtedIndices++] = thisVertIndex;
-								thisCellHistory.Indices[vertexIndex] = thisVertIndex;
-								// todo: some checking here + general asserts throughout
-
-							}
-							else
+							if (directionNibble == 8)
 							{
-								// reuse vertex
-								
-								/*
-									When a direction code is used to locate a
-									preceding cell, it is first ANDed with the validity mask to determine whether the preceding cell
-									exists..., and if not, the creation of a new vertex in the current cell is permitted.
-								*/
+								OutputVertexFixedPoint();
+							}
+							else if (directionNibble & validityMask)
+							{
 								/*
 									The bit values 1, 2, and 4 in this nibble indicate that we must subtract
 									one from the x, y, and /or z coordinate, respectively.These bits can be combined to indicate that
@@ -320,15 +312,131 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 
 								};
 								CellOutputHistory& cellToShare = readFromHistoryRecord(direction, { x,y,z });
-								rVal->Indices[rVal->OutputtedIndices++] = cellToShare.Indices[vertexIndex];
-								
+								if (cellToShare.Indices[vertexIndex] != INT_MAX)
+								{
+									rVal->Indices[rVal->OutputtedIndices++] = cellToShare.Indices[vertexIndex];
+								}
+								else
+								{
+									OutputVertexFixedPoint();
+								}
 							}
+							else
+							{
+								OutputVertexFixedPoint();
+							}
+							/////////glm::ivec3 Q;
+							//if ((t & 0x00FF) != 0)
+							//{
+							//	// Vertex lies in the interior of the edge.
+							//	OutputVertexFixedPoint(t, P0, P1, vertexIndex);
+							//}
+							//else if (t == 0)
+							//{
+							//	// Vertex lies at the higher-numbered endpoint.
+							//	if (v1 == 7)
+							//	{
+							//		// This cell owns the vertex.
+							//		OutputVertexFixedPoint(t, P0, P1, vertexIndex);
+							//	}
+							//	else
+							//	{
+							//		// Try to reuse corner vertex from a preceding cell.
+							//		if (directionNibble & validityMask)
+							//		{
+							//			/*
+							//				The bit values 1, 2, and 4 in this nibble indicate that we must subtract
+							//				one from the x, y, and /or z coordinate, respectively.These bits can be combined to indicate that
+							//				the preceding cell is diagonally adjacent across an edge or across the minimal corner
+							//			*/
+							//			glm::ivec3 direction = {
+							//				-(directionNibble & 1),
+							//				-((directionNibble & 2) >> 1),
+							//				-((directionNibble & 4) >> 2)
+
+							//			};
+							//			CellOutputHistory& cellToShare = readFromHistoryRecord(direction, { x,y,z });
+							//			rVal->Indices[rVal->OutputtedIndices++] = cellToShare.Indices[vertexIndex];
+							//		}
+							//		else
+							//		{
+							//			// create vertex
+							//			OutputVertexFixedPoint(t, P0, P1, vertexIndex);
+							//		}
+							//	}
+							//}
+							//else
+							//{
+							//	// Vertex lies at the lower-numbered endpoint.
+							//	// Always try to reuse corner vertex from a preceding cell.
+							//	if (directionNibble & validityMask)
+							//	{
+							//		/*
+							//			The bit values 1, 2, and 4 in this nibble indicate that we must subtract
+							//			one from the x, y, and /or z coordinate, respectively.These bits can be combined to indicate that
+							//			the preceding cell is diagonally adjacent across an edge or across the minimal corner
+							//		*/
+							//		glm::ivec3 direction = {
+							//			-(directionNibble & 1),
+							//			-((directionNibble & 2) >> 1),
+							//			-((directionNibble & 4) >> 2)
+
+							//		};
+							//		CellOutputHistory& cellToShare = readFromHistoryRecord(direction, { x,y,z });
+							//		rVal->Indices[rVal->OutputtedIndices++] = cellToShare.Indices[vertexIndex];
+							//	}
+							//	else
+							//	{
+							//		// create vertex
+							//		OutputVertexFixedPoint(t, P0, P1, vertexIndex);
+							//	}
+							//}
 						}
 					}
 				}
 			}
 		}
 	}
+
+	auto ConvertVertexFixedToFloat = [cellToPolygonize, blockBottomLeft](u32 startingPoint, u32 numberToConvert, const TerrainVertexFixedPoint* fixedPointVertsIn, TerrainVertex* floatingPointVertsOut)
+	{
+		auto fixedToFloat = [](u32 fixed8) -> float
+		{
+			return float(fixed8) / (1 << 8);
+		};
+		float sizeInVoxels = cellToPolygonize->GetSizeInVoxels();
+		const glm::vec3 blFloat = blockBottomLeft;
+		for (i32 i = startingPoint; i < numberToConvert; i++)
+		{
+			TerrainVertex& floatVert = floatingPointVertsOut[i];
+			const TerrainVertexFixedPoint& fixedVert = fixedPointVertsIn[i];
+			
+
+			floatVert.Position =
+			{
+				// whole number part                 // fractional part
+				/*(float)(fixedVert.Position.x >> 8) + ((float)fixedVert.Position.x / (float)TERRAIN_FIXED_FRACTION_MAX),
+				(float)(fixedVert.Position.y >> 8) + ((float)fixedVert.Position.y / (float)TERRAIN_FIXED_FRACTION_MAX),
+				(float)(fixedVert.Position.z >> 8) + ((float)fixedVert.Position.z / (float)TERRAIN_FIXED_FRACTION_MAX),*/
+				fixedToFloat(fixedVert.Position.x),
+				fixedToFloat(fixedVert.Position.y),
+				fixedToFloat(fixedVert.Position.z),
+
+			};
+
+			floatVert.Position = floatVert.Position * (sizeInVoxels / BASE_CELL_SIZE);
+			floatVert.Position += blFloat;
+
+			floatVert.Normal =
+			{
+				(float)(fixedVert.Normal.x >> 8) + ((float)fixedVert.Normal.x / (float)TERRAIN_FIXED_FRACTION_MAX),
+				(float)(fixedVert.Normal.y >> 8) + ((float)fixedVert.Normal.y / (float)TERRAIN_FIXED_FRACTION_MAX),
+				(float)(fixedVert.Normal.z >> 8) + ((float)fixedVert.Normal.z / (float)TERRAIN_FIXED_FRACTION_MAX),
+			};
+		}
+	};
+
+	ConvertVertexFixedToFloat(0, rVal->OutputtedVertices, fixedPointVerts, rVal->Vertices);
 	
 	return rVal;
 }

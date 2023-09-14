@@ -7,6 +7,7 @@
 #include "OctreeTypes.h"
 #include "TerrainLight.h"
 #include "TerrainMaterial.h"
+#include "Gizmos.h"
 
 static const char* gTerrainShaderCodeVert =
 "#version 330 core\n"
@@ -258,6 +259,19 @@ void TerrainRenderer::RenderTerrainNodes(
         glBindVertexArray(mesh.VAO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.GetEBO());
         glDrawElements(GL_TRIANGLES, mesh.IndiciesToDraw, GL_UNSIGNED_INT, 0);
+        const auto& bl = node->GetBottomLeftCorner();
+        const auto size = node->GetSizeInVoxels();
+        glm::vec3 parentCenter = {
+            bl.x + (size / 2),
+            bl.y + (size / 2),
+            bl.z + (size / 2)
+        };
+        Gizmos::AddBox(
+            parentCenter,
+            { size, size, size }, // dimensions
+            false,
+            { 1.0,1.0,1.0,1.0 }
+        );
     }
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindVertexArray(0);

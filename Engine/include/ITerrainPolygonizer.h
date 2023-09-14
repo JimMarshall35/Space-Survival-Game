@@ -11,10 +11,21 @@ class IAllocator;
 typedef glm::vec3 TerrainPosition;
 typedef glm::vec3 TerrainNormal;
 
+typedef glm::uvec3 TerrainPositionFixed;
+typedef glm::uvec3 TerrainNormalFixed;
+
+static_assert(sizeof(glm::vec3) == sizeof(glm::ivec3));
+
 struct TerrainVertex
 {
 	TerrainPosition Position;
 	TerrainNormal Normal;
+};
+
+struct TerrainVertexFixedPoint
+{
+	TerrainPositionFixed Position;
+	TerrainNormalFixed Normal;
 };
 
 struct PolygonizeWorkerThreadData
