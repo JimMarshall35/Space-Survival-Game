@@ -6,6 +6,7 @@
 #include <glm.hpp>
 #include <vector>
 #include "Camera.h"
+#include "Core.h"
 
 
 using namespace glm;
@@ -13,7 +14,7 @@ using namespace glm;
 
 
 
-class DebugVisualizerTerrainOctree : public ITerrainOctree
+class APP_API DebugVisualizerTerrainOctree : public ITerrainOctree
 {
 private:
 

@@ -3,6 +3,7 @@
 #include <future>
 #include <glm.hpp>
 #include "CommonTypedefs.h"
+#include "Core.h"
 
 struct ITerrainOctreeNode;
 class IVoxelDataSource;
@@ -16,19 +17,19 @@ typedef glm::uvec3 TerrainNormalFixed;
 
 static_assert(sizeof(glm::vec3) == sizeof(glm::ivec3));
 
-struct TerrainVertex
+struct APP_API TerrainVertex
 {
 	TerrainPosition Position;
 	TerrainNormal Normal;
 };
 
-struct TerrainVertexFixedPoint
+struct APP_API TerrainVertexFixedPoint
 {
 	TerrainPositionFixed Position;
 	TerrainNormalFixed Normal;
 };
 
-struct PolygonizeWorkerThreadData
+struct APP_API PolygonizeWorkerThreadData
 {
 	TerrainVertex* Vertices;
 	u32* Indices;
@@ -43,7 +44,7 @@ struct PolygonizeWorkerThreadData
 	void* GetPtrToDeallocate() { return this; } // we allocate all data, positions, normals, ect in one big block starting with the PolygonizeWorkerThreadData itself
 };
 
-class ITerrainPolygonizer
+class APP_API ITerrainPolygonizer
 {
 public:
 	virtual std::future<PolygonizeWorkerThreadData*> PolygonizeNodeAsync(ITerrainOctreeNode* node, IVoxelDataSource* source) = 0;

@@ -4,6 +4,7 @@
 #include "IVoxelDataSource.h"
 #include "ITerrainOctreeNode.h"
 #include "OctreeTypes.h"
+#include "Core.h"
 #include <glm.hpp>
 #include <vector>
 
@@ -15,7 +16,7 @@ class ITerrainPolygonizer;
 class ITerrainGraphicsAPIAdaptor;
 class ITerrainVoxelPopulator;
 
-class SparseTerrainVoxelOctree : public IVoxelDataSource
+class APP_API SparseTerrainVoxelOctree : public IVoxelDataSource
 {
 public:
 
@@ -41,7 +42,7 @@ public:
 
 public:
 
-	SparseTerrainVoxelOctree(IAllocator* allocator, ITerrainPolygonizer* polygonizer, ITerrainGraphicsAPIAdaptor* graphicsAPIAdaptor,u32 sizeVoxels, i8 clampValueHigh, i8 clampValueLow);
+	SparseTerrainVoxelOctree(IAllocator* allocator, ITerrainPolygonizer* polygonizer, ITerrainGraphicsAPIAdaptor* graphicsAPIAdaptor, u32 sizeVoxels, i8 clampValueHigh, i8 clampValueLow);
 
 	SparseTerrainVoxelOctree(IAllocator* allocator, ITerrainPolygonizer* polygonizer, ITerrainGraphicsAPIAdaptor* graphicsAPIAdaptor, u32 sizeVoxels, i8 clampValueHigh, i8 clampValueLow, ITerrainVoxelPopulator* populator);
 

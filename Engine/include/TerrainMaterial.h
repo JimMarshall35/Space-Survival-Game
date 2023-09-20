@@ -1,6 +1,6 @@
 #include <glm.hpp>
 
-struct TerrainMaterial
+struct APP_API TerrainMaterial
 {
 	glm::vec3 Colour;
 	float AmbientStrength;

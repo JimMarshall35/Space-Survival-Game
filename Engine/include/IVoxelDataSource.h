@@ -1,8 +1,10 @@
+#pragma once
 #include <glm.hpp>
 #include "CommonTypedefs.h"
+#include "Core.h"
 struct ITerrainOctreeNode;
 
-class IVoxelDataSource
+class APP_API IVoxelDataSource
 {
 public:
 	// need to make both getters const but can't due to FindChildContainingPoint implementation

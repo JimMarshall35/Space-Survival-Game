@@ -1,5 +1,6 @@
 #pragma once
 #include "CommonTypedefs.h"
+#include "Core.h"
 
 // a stack of visited children to get to a node - each nibble is an index into children
 // to be used for serialization.
@@ -11,7 +12,7 @@ enum class TerrainChunkMeshBuffer
 	EBO = 1
 };
 
-struct TerrainChunkMesh
+struct APP_API TerrainChunkMesh
 {
 	u32 VAO;
 	u32 Buffers[2];

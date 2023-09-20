@@ -1,5 +1,6 @@
 #pragma once
+#include "Core.h"
 
-class ITerrainOctree
+class APP_API ITerrainOctree
 {
 };

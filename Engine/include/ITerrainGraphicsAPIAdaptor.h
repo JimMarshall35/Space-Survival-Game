@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <glm.hpp>
+#include "Core.h"
 
 
 struct PolygonizeWorkerThreadData;
@@ -8,7 +9,7 @@ struct ITerrainOctreeNode;
 struct TerrainMaterial;
 struct TerrainLight;
 
-class ITerrainGraphicsAPIAdaptor
+class APP_API ITerrainGraphicsAPIAdaptor
 {
 public:
 	virtual void UploadNewlyPolygonizedToGPU(PolygonizeWorkerThreadData* data) = 0;
