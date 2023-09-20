@@ -7,6 +7,7 @@
 #include "Core.h"
 #include <glm.hpp>
 #include <vector>
+#include "SparseTerrainVoxelOctree.h"
 
 using namespace glm;
 

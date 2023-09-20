@@ -33,7 +33,7 @@ class MockVoxelDataSource : public IVoxelDataSource
 public:
 	MOCK_METHOD(i8, GetVoxelAt, (const glm::ivec3& valueAt), (override));
 	MOCK_METHOD(void, GetVoxelsForNode, (ITerrainOctreeNode* node, i8* outVoxels), (override));
-	MOCK_METHOD(void, SetVoxelAt, (const glm::ivec3& location, i8 value), (override));
+	MOCK_METHOD(TerrainOctreeIndex, SetVoxelAt, (const glm::ivec3& location, i8 value), (override));
 	MOCK_METHOD(void, Clear, (), (override));
 	MOCK_METHOD(void, ResizeAndClear, (const size_t newSize), (override));
 	MOCK_METHOD(size_t, GetSize, (), (const, override));

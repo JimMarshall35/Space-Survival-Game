@@ -2,6 +2,7 @@
 #include <glm.hpp>
 #include "CommonTypedefs.h"
 #include "Core.h"
+#include "OctreeTypes.h"
 struct ITerrainOctreeNode;
 
 class APP_API IVoxelDataSource
