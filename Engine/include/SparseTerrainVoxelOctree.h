@@ -57,7 +57,7 @@ public:
 	
 	virtual i8 GetVoxelAt(const glm::ivec3& location) override;
 	
-	virtual void SetVoxelAt(const glm::ivec3& location, i8 value) override;
+	virtual TerrainOctreeIndex SetVoxelAt(const glm::ivec3& location, i8 value) override;
 
 	virtual void Clear() override;
 

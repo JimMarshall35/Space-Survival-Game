@@ -153,9 +153,9 @@ i8 SparseTerrainVoxelOctree::GetVoxelAt(const glm::ivec3& location)
 	return onNode->VoxelData[voxelDataIndex];
 }
 
-void SparseTerrainVoxelOctree::SetVoxelAt(const glm::ivec3& location, i8 value)
+TerrainOctreeIndex SparseTerrainVoxelOctree::SetVoxelAt(const glm::ivec3& location, i8 value)
 {
-	TerrainOctreeIndex index = SetVoxelAt_Internal(location, value);
+	return SetVoxelAt_Internal(location, value);
 	//
 }
 
