@@ -104,9 +104,9 @@ static void StoreAndRetrieveBaseTest(const std::string& failedTestSeedLogFile, i
 		{
 			if (valueWrote != valueRead)
 			{
-				std::cerr << "locationToWrite: { " << positionToWrite.x << ", " << // EXPECT_EQ is different from ASSERT_EQ in that it doesn't terminate the test if it fails
+				std::cerr << "locationToWrite: { " << positionToWrite.x << ", " <<
 					positionToWrite.y << ", " <<
-					positionToWrite.z << " }\n";
+					positionToWrite.z << " } Expected: " << (int)valueWrote << " Got: "<< (int)valueRead << "\n";
 			}
 		}
 		else
