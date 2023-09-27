@@ -13,6 +13,8 @@
 #include <future>
 #include <new>
 
+// mute these tests before running as they regularly print the bell character '\a' 
+
 SparseTerrainVoxelOctree::SparseTerrainVoxelOctree(IAllocator* allocator, ITerrainPolygonizer* polygonizer, ITerrainGraphicsAPIAdaptor* graphicsAPIAdaptor, u32 sizeVoxels, i8 clampValueHigh, i8 clampValueLow)
 	:Allocator(allocator),
 	Polygonizer(polygonizer),
@@ -74,7 +76,7 @@ TerrainOctreeIndex SparseTerrainVoxelOctree::SetVoxelAt_Internal(const glm::ivec
 	}
 	glm::ivec3 voxelDataLocation = GetLocationWithinMipZeroCellFromWorldLocation(onNode, location);
 
-	size_t voxelDataIndex = voxelDataLocation.x + BASE_CELL_SIZE * voxelDataLocation.y + BASE_CELL_SIZE * BASE_CELL_SIZE * voxelDataLocation.y;
+	size_t voxelDataIndex = voxelDataLocation.x + BASE_CELL_SIZE * voxelDataLocation.y + BASE_CELL_SIZE * BASE_CELL_SIZE * voxelDataLocation.z;
 	if (onNode->VoxelData[voxelDataIndex] != value)
 	{
 		onNode->VoxelData[voxelDataIndex] = value;
@@ -149,7 +151,7 @@ i8 SparseTerrainVoxelOctree::GetVoxelAt(const glm::ivec3& location)
 	}
 	assert(onNode->VoxelData);
 	glm::ivec3 voxelDataLocation = GetLocationWithinMipZeroCellFromWorldLocation(onNode, locationToUse);
-	size_t voxelDataIndex = voxelDataLocation.x + BASE_CELL_SIZE * voxelDataLocation.y + BASE_CELL_SIZE * BASE_CELL_SIZE * voxelDataLocation.y;
+	size_t voxelDataIndex = voxelDataLocation.x + BASE_CELL_SIZE * voxelDataLocation.y + BASE_CELL_SIZE * BASE_CELL_SIZE * voxelDataLocation.z;
 	return onNode->VoxelData[voxelDataIndex];
 }
 
@@ -225,13 +227,13 @@ SparseTerrainVoxelOctree::SparseTerrainOctreeNode* SparseTerrainVoxelOctree::Fin
 	assert(OctreeFunctionLibrary::IsPointInCube(location, onNode->BottomLeftCorner, onNode->SizeInVoxels));
 	i32 childDims = onNode->SizeInVoxels / 2;
 	i32 childMipLevel = onNode->MipLevel - 1;
-	for (i32 x = 0; x < 2; x++)
+	for (i32 z = 0; z < 2; z++)
 	{
 		for (i32 y = 0; y < 2; y++)
 		{
-			for (i32 z = 0; z < 2; z++)
+			for (i32 x = 0; x < 2; x++)
 			{
-				i32 i = z + (2 * y) + (4 * x);
+				i32 i = x + (2 * y) + (4 * z);
 
 				glm::ivec3& childBL =
 					glm::ivec3{

@@ -1,6 +1,6 @@
 #pragma once
 #include "Core.h"
-
+#include <new.h>
 class APP_API IAllocator
 {
 public:
