@@ -22,8 +22,7 @@ std::mt19937 gen(positionSeed);\
  std::uniform_int_distribution<int> voxlDistr(gClampMin, gClampMax);\
 std::cerr << "Position Seed: "<< positionSeed << "Voxel Seed: "<< voxelSeed << "\n";
 
-#define RNGTestSetupBoilerPlateWithSeed(positionSeed, voxelSeed) std::random_device rd; \
-std::mt19937 gen(positionSeed);\
+#define RNGTestSetupBoilerPlateWithSeed(positionSeed, voxelSeed) std::mt19937 gen(positionSeed);\
  std::mt19937 voxelGen(voxelSeed);\
  std::uniform_int_distribution<unsigned int> posDistr(0, gSizeVoxels-1);\
  std::uniform_int_distribution<int> voxlDistr(gClampMin, gClampMax);\
@@ -35,14 +34,18 @@ static void LogFailedTestSeeds(u32 posSeed, u32 voxSeed, const std::string& file
 	std::ofstream outfile;
 
 	outfile.open(filePath, std::ofstream::out | std::ofstream::app); // append instead of overwrite
-	outfile << "posSeed: " << posSeed << " voxSeed: " << voxSeed << "\n";
+	outfile << posSeed << " " << voxSeed << "\n";
 
 }
 
-static void StoreAndRetrieveBaseTest(const std::string& failedTestSeedLogFile, int timesToRepeat, bool verbose=false)
+static void StoreAndRetrieveBaseTest(const std::string& failedTestSeedLogFile, int timesToRepeat, bool verbose=false, bool isReplay = false, u32 posSeed = 0, u32 voxSeed = 0)
 {
 	// arrange
-	RNGTestSetupBoilerPlate;
+	std::random_device rd;
+	posSeed = isReplay ? posSeed : rd();
+	voxSeed = isReplay ? voxSeed : rd();
+
+	RNGTestSetupBoilerPlateWithSeed(posSeed, voxSeed);
 
 	using namespace SparseOctreeTesttHelpers;
 	OctreeAndMockDependencies objects;
@@ -97,19 +100,33 @@ static void StoreAndRetrieveBaseTest(const std::string& failedTestSeedLogFile, i
 		glm::ivec3 positionToWrite = positionsToWrite[i];
 		i8 valueWrote = valuesToWrite[i];
 		i8 valueRead = octree.GetVoxelAt(positionToWrite);
-		EXPECT_EQ(valueWrote, valueRead) << "locationToWrite: { " << positionToWrite.x << ", " << // EXPECT_EQ is different from ASSERT_EQ in that it doesn't terminate the test if it fails
-			positionToWrite.y << ", " <<
-			positionToWrite.z << " }\n";
+		if (isReplay)
+		{
+			if (valueWrote != valueRead)
+			{
+				std::cerr << "locationToWrite: { " << positionToWrite.x << ", " << // EXPECT_EQ is different from ASSERT_EQ in that it doesn't terminate the test if it fails
+					positionToWrite.y << ", " <<
+					positionToWrite.z << " }\n";
+			}
+		}
+		else
+		{
+			EXPECT_EQ(valueWrote, valueRead) << "locationToWrite: { " << positionToWrite.x << ", " << // EXPECT_EQ is different from ASSERT_EQ in that it doesn't terminate the test if it fails
+				positionToWrite.y << ", " <<
+				positionToWrite.z << " }\n";
+		}
+		
 		if (testPassed && (valueWrote != valueRead))
 		{
 			testPassed = false;
 		}
 	}
-	if (!testPassed)
+	if (!testPassed && !isReplay)
 	{
-		LogFailedTestSeeds(positionSeed, voxelSeed, failedTestSeedLogFile);
+		LogFailedTestSeeds(posSeed, voxSeed, failedTestSeedLogFile);
 	}
 }
+
 TEST(SparseTerrainVoxelOctree, RandomStoreAndRetrieve)
 {
 	StoreAndRetrieveBaseTest("FailedTestSeedValues/RandomStoreAndRetrieve.txt", 1);
@@ -125,7 +142,21 @@ TEST(SparseTerrainVoxelOctree, RandomStoreAndRetrieve10000Times)
 	StoreAndRetrieveBaseTest("FailedTestSeedValues/RandomStoreAndRetrieve10000Times.txt", 10000);
 }
 
-
+TEST(SparseTerrainVoxelOctree, ReplayFailed_RandomStoreAndRetrieve10000Times)
+{
+	std::ifstream stream;
+	stream.open("FailedTestSeedValues/RandomStoreAndRetrieve10000Times.txt");
+	unsigned int positionSeed, voxelSeed;
+	unsigned int onTest = 0;
+	while (stream >> positionSeed >> voxelSeed)
+	{
+		std::cerr << "Rerunning failed test " << onTest++ << "\n";
+		StoreAndRetrieveBaseTest("FailedTestSeedValues/RandomStoreAndRetrieve10000Times.txt", 10000, 
+			false, // verbose
+			true,  // isReplay
+			positionSeed, voxelSeed);
+	}
+}
 
 TEST(SparseTerrainVoxelOctree, GetVoxelsForRandomNode)
 {
