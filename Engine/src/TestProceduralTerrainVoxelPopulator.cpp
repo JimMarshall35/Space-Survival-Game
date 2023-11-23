@@ -28,13 +28,9 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 		{
 			for (i32 x = 1; x < size-1; x++)
 			{
-				/*glm::vec3 pos = {x,y,z};
-				float distance = glm::length(pos - middle);
-				distance = std::clamp(radius - distance, -127.0f, 127.0f);*/
-				//float noiseVal = noise.fractal(3,x,z) * maxHeight;
 				float noiseVal = noise.fractal(3,x*0.001f,z*0.001f);
 				float val = (planeHeight + noiseVal * 100.0f) - y;
-				dataSrcToWriteTo->SetVoxelAt({ x,y,z }, std::clamp(val, -127.0f, 127.0f));//std::clamp(y-noiseVal, -127.0f, 127.0f));
+				dataSrcToWriteTo->SetVoxelAt({ x,y,z }, std::clamp(-val, -127.0f, 127.0f));//std::clamp(y-noiseVal, -127.0f, 127.0f));
 			}
 		}
 		std::cout << "z: " << z << ". percent complete: " << (float)z / (float)(size - 1) * 100.0f << "%\n";
