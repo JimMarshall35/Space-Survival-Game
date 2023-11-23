@@ -8,7 +8,8 @@
 #include <glm.hpp>
 #include <vector>
 #include "SparseTerrainVoxelOctree.h"
-
+#include <thread>
+#include <mutex>
 using namespace glm;
 
 class IAllocator;
@@ -31,6 +32,7 @@ public:
 		TerrainChunkMesh Mesh;
 		u32 SizeInVoxels;
 		i8* VoxelData = nullptr; // only set when MipLevel = 0
+		//std::mutex Mutex;
 		virtual ITerrainOctreeNode* GetChild(u8 child)const override { return static_cast<ITerrainOctreeNode*>(Children[child]); }
 		virtual const ivec3& GetBottomLeftCorner()const override { return BottomLeftCorner; }
 		virtual u32 GetSizeInVoxels() const override { return SizeInVoxels; }
@@ -106,4 +108,5 @@ private:
 
 	ITerrainGraphicsAPIAdaptor* GraphicsAPIAdaptor;
 
+	std::mutex SetVoxelMutex;
 };

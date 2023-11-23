@@ -37,6 +37,8 @@ namespace rdx {
         thread_pool(const thread_pool&) = delete;
         thread_pool& operator=(thread_pool&&) = delete;
         thread_pool& operator=(const thread_pool&) = delete;
+
+        size_t NumWorkers() { return workers.size(); }
     };
 
     template<class F, class ...Args>

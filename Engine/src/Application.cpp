@@ -15,10 +15,26 @@
 #include "TerrainMaterial.h"
 #include "TerrainLight.h"
 #include "TestProceduralTerrainVoxelPopulator.h"
+#include "ThreadPool.h"
+#include <memory>
 
 bool Application::bWantMouseInput;
 bool Application::bWantKeyboardInput;
+bool Application::bWireframeMode;
 Camera Application::DebugCamera;
+
+static void GLAPIENTRY MessageCallback(GLenum source,
+    GLenum type,
+    GLuint id,
+    GLenum severity,
+    GLsizei length,
+    const GLchar* message,
+    const void* userParam)
+{
+    fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+        (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
+        type, severity, message);
+}
 
 Application::Application()
 {
@@ -55,6 +71,8 @@ Application::Application()
 			}
 		});
 	SetWindowSize(Window, ScreenWidth, ScreenHeight);
+
+	glDebugMessageCallback(MessageCallback, 0);
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -205,6 +223,18 @@ void Application::ProcessInput(GLFWwindow* window, float delta)
 	else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
 		DebugCamera.ProcessKeyboard(RIGHT, delta);
 	}
+	else if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS){
+		if (bWireframeMode)
+		{
+			glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+			bWireframeMode = false;
+		}
+		else
+		{
+			glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+			bWireframeMode = true;
+		}
+	}
 }
 
 void Application::CursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
@@ -247,9 +277,10 @@ void Application::Run()
 
 	TerrainMaterial material;
 	material.AmbientStrength = 1.0;
-	material.Colour = { 0, 1.0, 0.0 };
+	material.DiffuseStrength = 1.0;
+	material.Colour = { 0.0, 1.0, 0.0 };
 	material.Shinyness = 16;
-	material.SpecularStrength = 0.0;
+	material.SpecularStrength = 1.0;
 
 	TerrainLight light;
 	light.LightColor = { 1.0,1.0,1.0 };
@@ -258,13 +289,17 @@ void Application::Run()
 	renderer.SetTerrainLight(light);
 	renderer.SetTerrainMaterial(material);
 
-	TerrainPolygonizer polygonizer(&allocator);
-	TestProceduralTerrainVoxelPopulator pop;
-	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &renderer, 2048, 10,-10, &pop);
+	std::shared_ptr<rdx::thread_pool> threadPool = std::make_shared<rdx::thread_pool>(std::thread::hardware_concurrency());
+
+	TerrainPolygonizer polygonizer(&allocator, threadPool);
+	TestProceduralTerrainVoxelPopulator pop(threadPool);
+	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &renderer, 2048, 100,-100, &pop);
 
 	ImGuiIO& io = ImGui::GetIO();
 	std::vector<ITerrainOctreeNode*> outNodes;
 	glm::mat4 identity(1.0f);
+
+	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 	while (!glfwWindowShouldClose(Window))
 	{
 		bWantMouseInput = io.WantCaptureMouse;

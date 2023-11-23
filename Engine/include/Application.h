@@ -56,6 +56,7 @@ private:
 	
 	static bool bWantMouseInput;
 	static bool bWantKeyboardInput;
+	static bool bWireframeMode;
 };
 
 void FrameBufferSizeCallback(GLFWwindow* window, int width, int height)

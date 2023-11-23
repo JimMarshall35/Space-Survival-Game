@@ -63,6 +63,7 @@ TerrainOctreeIndex SparseTerrainVoxelOctree::SetVoxelAt_Internal(const glm::ivec
 		assert(onNode);
 		outIndex |= (TerrainOctreeIndex)(childIndex << (4 * (shiftCounter++)));
 	}
+
 	if (!onNode->VoxelData)
 	{
 		static const size_t voxelDataAllocationSize = BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE;
