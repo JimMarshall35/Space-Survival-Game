@@ -1,3 +1,4 @@
+#pragma once
 #include "ITerrainVoxelPopulator.h"
 #include <memory>
 

@@ -246,7 +246,7 @@ void TerrainRenderer::SetTerrainLight(const TerrainLight& light)
 
 void TerrainRenderer::RenderTerrainNodes(
     const std::vector<ITerrainOctreeNode*>& nodes,
-    const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection)
+    const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection, bool renderDebugBoxes)
 {
     TerrainTimePoint now = std::chrono::system_clock::now();
     for (ITerrainOctreeNode* node : nodes)
@@ -269,12 +269,15 @@ void TerrainRenderer::RenderTerrainNodes(
             bl.y + (size / 2),
             bl.z + (size / 2)
         };
-        Gizmos::AddBox(
-            parentCenter,
-            { size, size, size }, // dimensions
-            false,
-            { 1.0,1.0,1.0,1.0 }
-        );
+        if (renderDebugBoxes)
+        {
+            Gizmos::AddBox(
+                parentCenter,
+                { size, size, size }, // dimensions
+                false,
+                { 1.0,1.0,1.0,1.0 }
+            );
+        }
     }
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindVertexArray(0);

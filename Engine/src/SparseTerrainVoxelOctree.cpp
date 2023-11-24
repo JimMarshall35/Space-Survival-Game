@@ -57,6 +57,7 @@ TerrainOctreeIndex SparseTerrainVoxelOctree::SetVoxelAt_Internal(const glm::ivec
 
 	while (onNode->MipLevel != 0)
 	{
+		onNode->GetTerrainChunkMeshMutable().bNeedsRegenerating = true;
 		ParentNodeStack[ParentNodeStackPtr++] = onNode;
 		u8 childIndex = 0xff;
 		onNode = FindChildContainingPoint(onNode, location, childIndex);
@@ -181,14 +182,34 @@ size_t SparseTerrainVoxelOctree::GetSize() const
 	return ParentNode.SizeInVoxels;
 }
 
-SparseTerrainVoxelOctree::SparseTerrainOctreeNode* SparseTerrainVoxelOctree::FindNodeFromIndex(TerrainOctreeIndex index)
+ITerrainOctreeNode* SparseTerrainVoxelOctree::FindNodeFromIndex(TerrainOctreeIndex index, bool createIfDoesntExist/* = false*/)
 {
 	SparseTerrainOctreeNode* onNode = &ParentNode;
 	for (u32 i = 0; i < ParentNode.MipLevel; i++)
 	{
 		u32 thisIndex = (index >> (4 * i)) & 0x0f;
 		onNode = onNode->Children[thisIndex];
-		assert(onNode);
+		if (createIfDoesntExist)
+		{
+			i32 childDims = onNode->SizeInVoxels / 2;
+			i32 childMipLevel = onNode->MipLevel - 1;
+			i32 x = thisIndex & 1;
+			i32 y = thisIndex & 2;
+			i32 z = thisIndex & 4;
+			glm::ivec3& childBL = glm::ivec3
+			{
+				onNode->BottomLeftCorner.x + x * childDims,
+				onNode->BottomLeftCorner.y + y * childDims,
+				onNode->BottomLeftCorner.z + z * childDims
+			};
+			onNode->Children[thisIndex] = IAllocator::New<SparseTerrainOctreeNode>(Allocator);
+			new(onNode->Children[thisIndex])SparseTerrainOctreeNode(childMipLevel, childBL, childDims);
+			onNode = onNode->Children[thisIndex];
+		}
+		else
+		{
+			assert(onNode);
+		}
 	}
 	return onNode;
 }
@@ -315,4 +336,10 @@ const TerrainChunkMesh& SparseTerrainVoxelOctree::SparseTerrainOctreeNode::GetTe
 void SparseTerrainVoxelOctree::SparseTerrainOctreeNode::SetTerrainChunkMesh(const TerrainChunkMesh& mesh)
 {
 	Mesh = mesh;
+}
+
+void SparseTerrainVoxelOctree::AllocateNodeVoxelData(ITerrainOctreeNode* node)
+{
+	static const size_t voxelDataAllocationSize = BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE;
+	node->SetVoxelData(IAllocator::NewArray<i8>(Allocator, voxelDataAllocationSize));
 }

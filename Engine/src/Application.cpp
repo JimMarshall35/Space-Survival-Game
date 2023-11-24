@@ -21,7 +21,14 @@
 bool Application::bWantMouseInput;
 bool Application::bWantKeyboardInput;
 bool Application::bWireframeMode;
+bool Application::bDebugDrawChunks;
+bool Application::bDebugVoxels;
+glm::ivec3 Application::SelectedVoxel;
+float Application::CursorDistance;
+
 Camera Application::DebugCamera;
+
+static SparseTerrainVoxelOctree* sOctree;
 
 static void GLAPIENTRY MessageCallback(GLenum source,
     GLenum type,
@@ -71,7 +78,7 @@ Application::Application()
 			}
 		});
 	SetWindowSize(Window, ScreenWidth, ScreenHeight);
-
+	glfwSetScrollCallback(Window, &ScrollCallback);
 	glDebugMessageCallback(MessageCallback, 0);
 
 	IMGUI_CHECKVERSION();
@@ -92,6 +99,10 @@ Application::Application()
 	CubeOptionsOpen = false;
 
 	glEnable(GL_DEPTH_TEST);
+	bDebugVoxels = false;
+	bDebugDrawChunks = false;
+	SelectedVoxel = {0,0,0};
+	CursorDistance = 3.0f;
 }
 
 Application::~Application()
@@ -105,97 +116,7 @@ Application::~Application()
 	glfwTerminate();
 }
 
-//void Application::FreeCameraMovement(glm::mat4& transform, float deltaTime, float speed, const glm::vec3& worldUp /*= glm::vec3(0, 1, 0)*/)
-//{
-//	Window = glfwGetCurrentContext();
-//
-//	glm::vec4 forward = transform[2];
-//	glm::vec4 right = transform[0];
-//	glm::vec4 up = transform[1];
-//	glm::vec4 translation = transform[3];
-//
-//	float frameSpeed = glfwGetKey(Window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? deltaTime * speed * 2 : deltaTime * speed;
-//
-//	// Translate camera
-//	if (glfwGetKey(Window, 'W') == GLFW_PRESS)
-//	{
-//		translation -= forward * frameSpeed;
-//	}
-//	if (glfwGetKey(Window, 'S') == GLFW_PRESS)
-//	{
-//		translation += forward * frameSpeed;
-//	}
-//	if (glfwGetKey(Window, 'D') == GLFW_PRESS)
-//	{
-//		translation += right * frameSpeed;
-//	}
-//	if (glfwGetKey(Window, 'A') == GLFW_PRESS)
-//	{
-//		translation -= right * frameSpeed;
-//	}
-//	if (glfwGetKey(Window, 'Q') == GLFW_PRESS)
-//	{
-//		translation += up * frameSpeed;
-//	}
-//	if (glfwGetKey(Window, 'E') == GLFW_PRESS)
-//	{
-//		translation -= up * frameSpeed;
-//	}
-//	
-//
-//	transform[3] = translation;
-//
-//	// check for camera rotation
-//	static bool mouseButtonDown = false;
-//	if (glfwGetMouseButton(Window, GLFW_MOUSE_BUTTON_2) == GLFW_PRESS)
-//	{
-//		static double prevMouseX = 0;
-//		static double prevMouseY = 0;
-//
-//		if (mouseButtonDown == false)
-//		{
-//			mouseButtonDown = true;
-//			glfwGetCursorPos(Window, &prevMouseX, &prevMouseY);
-//		}
-//
-//		double mouseX = 0, mouseY = 0;
-//		glfwGetCursorPos(Window, &mouseX, &mouseY);
-//
-//		double deltaX = mouseX - prevMouseX;
-//		double deltaY = mouseY - prevMouseY;
-//
-//		prevMouseX = mouseX;
-//		prevMouseY = mouseY;
-//
-//		glm::mat4 mat;
-//
-//		// pitch
-//		if (deltaY != 0)
-//		{
-//			mat = glm::axisAngleMatrix(right.xyz(), (float)-deltaY / 150.0f);
-//			right = mat * right;
-//			up = mat * up;
-//			forward = mat * forward;
-//		}
-//
-//		// yaw
-//		if (deltaX != 0)
-//		{
-//			mat = glm::axisAngleMatrix(worldUp, (float)-deltaX / 150.0f);
-//			right = mat * right;
-//			up = mat * up;
-//			forward = mat * forward;
-//		}
-//
-//		transform[0] = right;
-//		transform[1] = up;
-//		transform[2] = forward;
-//	}
-//	else
-//	{
-//		mouseButtonDown = false;
-//	}
-//}
+
 
 void Application::ProcessInput(GLFWwindow* window, float delta)
 {
@@ -222,18 +143,6 @@ void Application::ProcessInput(GLFWwindow* window, float delta)
 	}
 	else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
 		DebugCamera.ProcessKeyboard(RIGHT, delta);
-	}
-	else if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS){
-		if (bWireframeMode)
-		{
-			glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
-			bWireframeMode = false;
-		}
-		else
-		{
-			glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-			bWireframeMode = true;
-		}
 	}
 }
 
@@ -293,7 +202,8 @@ void Application::Run()
 
 	TerrainPolygonizer polygonizer(&allocator, threadPool);
 	TestProceduralTerrainVoxelPopulator pop(threadPool);
-	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &renderer, 2048, 100,-100, &pop);
+	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &renderer, 2048, 50, -50, &pop);
+	sOctree = &sparse;
 
 	ImGuiIO& io = ImGui::GetIO();
 	std::vector<ITerrainOctreeNode*> outNodes;
@@ -330,10 +240,8 @@ void Application::Run()
 		//VoxelVolume.DebugVisualiseVolume();
 		//oct.DebugVisualiseChunks(VisibleNodes);
 
-		renderer.RenderTerrainNodes(outNodes, identity, DebugCamera.GetViewMatrix(), ProjectionMatrix);
+		renderer.RenderTerrainNodes(outNodes, identity, DebugCamera.GetViewMatrix(), ProjectionMatrix, bDebugDrawChunks);
 		
-
-		Gizmos::Draw(DebugCamera.GetViewMatrix(), ProjectionMatrix);
 
 		ImGui::SetNextItemWidth(200);
 		if (ImGui::Begin("Objects", &CubeOptionsOpen, 0))
@@ -345,12 +253,43 @@ void Application::Run()
 				ImGui::DragInt("Position Z", &CubeZ, 1.0f, -100, 100);
 
 				ImGui::TreePop();
-			}			
+			}
+			if (ImGui::TreeNode("Terrain"))
+			{
+				if (ImGui::Checkbox("WireFrame", &bWireframeMode))
+				{
+					if (bWireframeMode)
+					{
+						glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+					}
+					else
+					{
+						glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+					}
+				}
+				ImGui::Checkbox("VisualiseTerrainChunks", &bDebugDrawChunks);
+				ImGui::Checkbox("DebugVoxels", &bDebugVoxels);
+				if (bDebugVoxels)
+				{
+					DrawBoxAroundSelectedVoxel();
+					size_t octreeSize = sparse.GetSize();
+					if (SelectedVoxel.x >= 0 && SelectedVoxel.x < octreeSize &&
+						SelectedVoxel.y >= 0 && SelectedVoxel.y < octreeSize &&
+						SelectedVoxel.z >= 0 && SelectedVoxel.z < octreeSize)
+					{
+						ImGuiPrintSelectedVoxelInfo(sparse);
+					}
+				}
+				ImGui::SliderFloat("Cursor distance", &CursorDistance, 3.0f, 100.0f);
+				ImGui::TreePop();
+			}
 		}		
 		ImGui::End();
 		
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+		Gizmos::Draw(DebugCamera.GetViewMatrix(), ProjectionMatrix);
 
 		glfwSwapBuffers(Window);
 	}
@@ -369,13 +308,38 @@ void Application::SetWindowSize(GLFWwindow* window, int width, int height)
 	ProjectionMatrix = glm::perspective(FOV, Aspect, Near, Far);
 }
 
-void Application::DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree)
-{
-	VisibleNodes.clear();
-	terrainOctree.GetChunksToRender(DebugCamera, Aspect, FOV, Near, Far, VisibleNodes);
-}
+//void Application::DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree)
+//{
+//	VisibleNodes.clear();
+//	terrainOctree.GetChunksToRender(DebugCamera, Aspect, FOV, Near, Far, VisibleNodes);
+//}
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
+}
+
+void Application::DrawBoxAroundSelectedVoxel()
+{
+	using namespace glm;
+	vec3 cursorPos = DebugCamera.Position + normalize(DebugCamera.Front) * CursorDistance;
+	SelectedVoxel = {
+		floor(cursorPos.x),
+		floor(cursorPos.y),
+		floor(cursorPos.z)
+	};
+	Gizmos::AddBox(glm::vec3(SelectedVoxel) + vec3{0.5f,0.5f,0.5f},
+		vec3{1,1,1},
+		false);
+
+}
+
+void Application::ImGuiPrintSelectedVoxelInfo(SparseTerrainVoxelOctree& octree)
+{
+	ImGui::Text("Selected Voxel Value: %i", octree.GetVoxelAt(SelectedVoxel));
+}
+void Application::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	i8 val = sOctree->GetVoxelAt(SelectedVoxel);
+	sOctree->SetVoxelAt(SelectedVoxel, yoffset < 0 ? val - 1 : val + 1);
 }

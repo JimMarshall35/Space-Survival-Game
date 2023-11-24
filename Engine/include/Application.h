@@ -12,6 +12,7 @@ class GLFWwindow;
 class DebugVisualizerTerrainOctree;
 struct ITerrainOctreeNode;
 struct ImGuiIO;
+class SparseTerrainVoxelOctree;
 
 class APP_API Application
 {
@@ -26,9 +27,14 @@ public:
 	void SetWindowSize(GLFWwindow* window, int width, int height);
 
 private:
-	void DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree);
+	//void DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree);
 	static void ProcessInput(GLFWwindow* window, float delta);
 	static void CursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
+	static void DrawBoxAroundSelectedVoxel();
+	static void ImGuiPrintSelectedVoxelInfo(SparseTerrainVoxelOctree& octree);
+	static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+
+
 private:
 	GLFWwindow* Window;
 
@@ -57,6 +63,11 @@ private:
 	static bool bWantMouseInput;
 	static bool bWantKeyboardInput;
 	static bool bWireframeMode;
+	static bool bDebugDrawChunks;
+	static bool bDebugVoxels;
+	static float CursorDistance;
+
+	static glm::ivec3 SelectedVoxel;
 };
 
 void FrameBufferSizeCallback(GLFWwindow* window, int width, int height)

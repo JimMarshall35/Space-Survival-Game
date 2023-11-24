@@ -5,6 +5,8 @@
 #include "SimplexNoise.h"
 #include <algorithm>
 #include <iostream>
+#include <unordered_set>
+#include "OctreeSerialisationLibrary.h"
 
 TestProceduralTerrainVoxelPopulator::TestProceduralTerrainVoxelPopulator(const std::shared_ptr<rdx::thread_pool>& threadPool)
 	:ThreadPool(threadPool)
@@ -13,6 +15,7 @@ TestProceduralTerrainVoxelPopulator::TestProceduralTerrainVoxelPopulator(const s
 
 void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* dataSrcToWriteTo)
 {
+	std::unordered_set<TerrainOctreeIndex> octreeNodesSet;
 	size_t availableWorkers = ThreadPool->NumWorkers();
 
 	SimplexNoise noise;
@@ -30,9 +33,14 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 			{
 				float noiseVal = noise.fractal(3,x*0.001f,z*0.001f);
 				float val = (planeHeight + noiseVal * 100.0f) - y;
-				dataSrcToWriteTo->SetVoxelAt({ x,y,z }, std::clamp(-val, -127.0f, 127.0f));//std::clamp(y-noiseVal, -127.0f, 127.0f));
+				TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ x,y,z }, std::clamp(-val, -127.0f, 127.0f)*3.0f);//std::clamp(y-noiseVal, -127.0f, 127.0f));
+				if (octreeNodesSet.find(indexSet) == octreeNodesSet.end())
+				{
+					octreeNodesSet.insert(indexSet);
+				}
 			}
 		}
 		std::cout << "z: " << z << ". percent complete: " << (float)z / (float)(size - 1) * 100.0f << "%\n";
 	}
+	//OctreeSerialisation::SaveNewlyGeneratedToFile(octreeNodesSet, dataSrcToWriteTo, "test.vox");
 }

@@ -42,6 +42,7 @@ struct TerrainRendererConfigData
 class TerrainRenderer : public ITerrainGraphicsAPIAdaptor
 {
 public:
+	TerrainRenderer(){};
 	TerrainRenderer(const TerrainRendererConfigData& memoryBudget);
 
 	// Inherited via ITerrainGraphicsAPIAdaptor
@@ -50,7 +51,7 @@ public:
 	// Inherited via ITerrainGraphicsAPIAdaptor
 	virtual void RenderTerrainNodes(
 		const std::vector<ITerrainOctreeNode*>& nodes,
-		const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection) override;
+		const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection, bool renderDebugBoxes = false) override;
 
 	// Inherited via ITerrainGraphicsAPIAdaptor
 	virtual void SetTerrainMaterial(const TerrainMaterial& material) override;

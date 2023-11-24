@@ -52,6 +52,10 @@ void TerrainLODSelectionAndCullingAlgorithm::GetChunksToRender(const Frustum& fr
 		}
 		else if (onNode->GetMipLevel() == 0)
 		{
+			if (needsRegeneratingCallback && onNode->NeedsRegenerating())
+			{
+				needsRegeneratingCallback(onNode);
+			}
 			outNodesToRender.push_back(onNode);
 		}
 	}

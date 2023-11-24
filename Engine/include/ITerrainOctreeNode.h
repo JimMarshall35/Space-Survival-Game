@@ -15,4 +15,6 @@ struct APP_API ITerrainOctreeNode
 	virtual TerrainChunkMesh& GetTerrainChunkMeshMutable() = 0;
 	virtual void SetTerrainChunkMesh(const TerrainChunkMesh& mesh) = 0;
 	virtual bool NeedsRegenerating() const = 0;
+	virtual i8* GetVoxelData() = 0;
+	virtual void SetVoxelData(i8* data) = 0;
 };

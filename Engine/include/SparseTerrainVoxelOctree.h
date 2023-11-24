@@ -41,6 +41,8 @@ public:
 		virtual void SetTerrainChunkMesh(const TerrainChunkMesh& mesh) override;
 		virtual bool NeedsRegenerating() const override { return Mesh.bNeedsRegenerating; }
 		virtual TerrainChunkMesh& GetTerrainChunkMeshMutable() override { return Mesh; }
+		virtual i8* GetVoxelData() override { return VoxelData; };
+		virtual void SetVoxelData(i8* newData) { VoxelData = newData; }
 	};
 
 public:
@@ -52,9 +54,11 @@ public:
 
 	~SparseTerrainVoxelOctree();
 
-	SparseTerrainOctreeNode* FindNodeFromIndex(TerrainOctreeIndex index);
+	
 
 	//IVoxelDataSource
+
+	virtual ITerrainOctreeNode* FindNodeFromIndex(TerrainOctreeIndex index, bool createIfDoesntExist) override;
 
 	virtual void GetVoxelsForNode(ITerrainOctreeNode* node, i8* outVoxels) override;
 	
@@ -67,6 +71,8 @@ public:
 	virtual void ResizeAndClear(const size_t newSize) override;
 
 	virtual size_t GetSize() const override;
+
+	virtual void AllocateNodeVoxelData(ITerrainOctreeNode* node) override;
 
 	//IVoxelDataSource end
 

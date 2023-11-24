@@ -16,4 +16,6 @@ public:
 	virtual void Clear() = 0;
 	virtual void ResizeAndClear(const size_t newSize) = 0;
 	virtual size_t GetSize() const = 0;
+	virtual ITerrainOctreeNode* FindNodeFromIndex(TerrainOctreeIndex index, bool createIfDoesntExist = false) = 0;
+	virtual void AllocateNodeVoxelData(ITerrainOctreeNode* node) = 0;
 };
