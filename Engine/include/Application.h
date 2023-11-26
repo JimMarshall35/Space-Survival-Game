@@ -56,6 +56,10 @@ private:
 	float Near;
 	float Far;
 
+	float MaxCameraSpeed = 2000.0f;
+	float MinCameraSpeed = 0.0f;
+	float CameraSpeed = 1000.0f;
+
 	
 	std::vector<ITerrainOctreeNode*> VisibleNodes;
 	

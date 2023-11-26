@@ -66,7 +66,7 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 							{
 								float noiseVal = noise.fractal(3, tx * 0.001f, tz * 0.001f);
 								float val = (planeHeight + noiseVal * 100.0f) - ty;
-								TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ tx,ty,tz }, std::clamp(-val, -127.0f, 127.0f));
+								TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ tx,ty,tz }, std::clamp(-val*10.0f, -127.0f, 127.0f));
 							}
 						}
 						ThreadsafePrint("thread ID %s. Z: %i. Complete: %f\n", sid.c_str(), tz, ((float)(tz - childBL.z) / (float)childDims) * 100.0f);
@@ -79,51 +79,4 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	{
 		future.wait();
 	}
-	//std::unordered_set<TerrainOctreeIndex> octreeNodesSet;
-	//size_t availableWorkers = ThreadPool->NumWorkers();
-
-	//SimplexNoise noise;
-	//float maxHeight = 1000.0f;
-	//float planeHeight = 200.0f;
-
-	//u32 size = dataSrcToWriteTo->GetSize();
-	//glm::vec3 middle = glm::vec3(size/2,size/2,size/2);
-	//float radius = 500;
-	//i32 step = size / availableWorkers;
-	//std::vector<std::future<void>> futures;
-	//for (i32 threadStartZ = 0; threadStartZ < size; threadStartZ += step)
-	//{
-	//	futures.push_back(ThreadPool->enqueue([&]() {
-	//		static std::ostringstream id;
-	//		static std::string sid;
-
-	//		if (sid.empty())
-	//		{
-	//			id << std::this_thread::get_id();
-	//			sid = id.str();
-	//		}
-
-	//		for (i32 z = threadStartZ; z < threadStartZ + step; z++)
-	//		{
-	//			for (i32 y = 0; y < size; y++)
-	//			{
-	//				for (i32 x = 0; x < size; x++)
-	//				{
-	//					float noiseVal = noise.fractal(3, x * 0.001f, z * 0.001f);
-	//					float val = (planeHeight + noiseVal * 100.0f) - y;
-	//					TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ x,y,z }, std::clamp(-val, -127.0f, 127.0f));//std::clamp(y-noiseVal, -127.0f, 127.0f));
-
-	//				}
-	//			}
-
-	//			ThreadsafePrint("thread ID %s. Z: %i. Complete: %f%\n", sid, z, ((float)z - (float)threadStartZ) / (float)step);
-	//		}
-	//		
-	//	}));
-	//	
-	//}
-	//for (auto& future : futures)
-	//{
-	//	future.wait();
-	//}
 }

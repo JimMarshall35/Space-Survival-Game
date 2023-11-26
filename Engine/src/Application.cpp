@@ -20,7 +20,7 @@
 
 bool Application::bWantMouseInput;
 bool Application::bWantKeyboardInput;
-bool Application::bWireframeMode;
+bool Application::bWireframeMode = true;
 bool Application::bDebugDrawChunks;
 bool Application::bDebugVoxels;
 glm::ivec3 Application::SelectedVoxel;
@@ -36,7 +36,8 @@ static void GLAPIENTRY MessageCallback(GLenum source,
     GLenum severity,
     GLsizei length,
     const GLchar* message,
-    const void* userParam)
+    const void* 
+	Param)
 {
     fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
         (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
@@ -103,6 +104,8 @@ Application::Application()
 	bDebugDrawChunks = false;
 	SelectedVoxel = {0,0,0};
 	CursorDistance = 3.0f;
+	DebugCamera.MovementSpeed = CameraSpeed;
+
 }
 
 Application::~Application()
@@ -144,6 +147,12 @@ void Application::ProcessInput(GLFWwindow* window, float delta)
 	else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
 		DebugCamera.ProcessKeyboard(RIGHT, delta);
 	}
+	else if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+		DebugCamera.ProcessKeyboard(DOWN, delta);
+	}
+	else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+		DebugCamera.ProcessKeyboard(UP, delta);
+	}
 }
 
 void Application::CursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
@@ -171,6 +180,13 @@ struct dummy
 	u16 di;
 	i8 da;
 };
+
+TerrainMaterial material;
+
+TerrainLight light;
+bool bRefreshChunks = true;
+
+
 void Application::Run()
 {
 	DefaultAllocator allocator;
@@ -184,14 +200,12 @@ void Application::Run()
 		10000
 		});
 
-	TerrainMaterial material;
-	material.AmbientStrength = 1.0;
-	material.DiffuseStrength = 1.0;
+	material.AmbientStrength = 0.2;
+	material.DiffuseStrength = 0.5;
 	material.Colour = { 0.0, 1.0, 0.0 };
-	material.Shinyness = 16;
-	material.SpecularStrength = 1.0;
+	material.Shinyness = 8;
+	material.SpecularStrength = 0.2;
 
-	TerrainLight light;
 	light.LightColor = { 1.0,1.0,1.0 };
 	light.LightPosition = { 1024, 1024, 2048 };
 
@@ -202,7 +216,7 @@ void Application::Run()
 
 	TerrainPolygonizer polygonizer(&allocator, threadPool);
 	TestProceduralTerrainVoxelPopulator pop(threadPool);
-	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &renderer, 2048, 50, -50, &pop);
+	SparseTerrainVoxelOctree sparse(&allocator, &polygonizer, &renderer, 2048, 126, -127, &pop);
 	sOctree = &sparse;
 
 	ImGuiIO& io = ImGui::GetIO();
@@ -218,8 +232,11 @@ void Application::Run()
 		glfwPollEvents();
 		//FreeCameraMovement(DebugC, 0.0024, 300);
 		ProcessInput(Window, 0.0024);
-		outNodes.clear();
-		sparse.GetChunksToRender(DebugCamera, Aspect, FOV, Near, Far, outNodes);
+		if (bRefreshChunks)
+		{
+			outNodes.clear();
+			sparse.GetChunksToRender(DebugCamera, Aspect, FOV, Near, Far, outNodes);
+		}
 
 
 		glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
@@ -246,14 +263,7 @@ void Application::Run()
 		ImGui::SetNextItemWidth(200);
 		if (ImGui::Begin("Objects", &CubeOptionsOpen, 0))
 		{
-			if (ImGui::TreeNode("Cube"))
-			{
-				ImGui::DragInt("Position X", &CubeX, 1.0f, -100, 100);
-				ImGui::DragInt("Position Y", &CubeY, 1.0f, -100, 100);
-				ImGui::DragInt("Position Z", &CubeZ, 1.0f, -100, 100);
-
-				ImGui::TreePop();
-			}
+			ImGui::DragFloat("Camera speed", &DebugCamera.MovementSpeed, 1.0f, MinCameraSpeed, MaxCameraSpeed);
 			if (ImGui::TreeNode("Terrain"))
 			{
 				if (ImGui::Checkbox("WireFrame", &bWireframeMode))
@@ -269,6 +279,7 @@ void Application::Run()
 				}
 				ImGui::Checkbox("VisualiseTerrainChunks", &bDebugDrawChunks);
 				ImGui::Checkbox("DebugVoxels", &bDebugVoxels);
+				ImGui::Checkbox("Refresh chunks", &bRefreshChunks);
 				if (bDebugVoxels)
 				{
 					DrawBoxAroundSelectedVoxel();
@@ -281,6 +292,35 @@ void Application::Run()
 					}
 				}
 				ImGui::SliderFloat("Cursor distance", &CursorDistance, 3.0f, 100.0f);
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("TerrainRendering"))
+			{
+				bool materialEditMade = false;
+				bool lightEditMade = false;
+				if (ImGui::TreeNode("Terrain Material"))
+				{
+					if (ImGui::ColorPicker3("terrain colour", &material.Colour[0]) ||
+						ImGui::DragFloat("ambient strength", &material.AmbientStrength) ||
+						ImGui::DragFloat("diffuse strength", &material.DiffuseStrength) ||
+						ImGui::DragFloat("specular strength", &material.SpecularStrength) ||
+						ImGui::DragFloat("shininess", &material.Shinyness))
+					{
+						renderer.SetTerrainMaterial(material);
+					}
+					ImGui::TreePop();
+				}
+				if (ImGui::TreeNode("Terrain Lighting"))
+				{
+					if (ImGui::ColorPicker3("light colour", &light.LightColor[0]) ||
+						ImGui::DragFloat3("light pos", &light.LightPosition[0]))
+					{
+						renderer.SetTerrainLight(light);
+					}
+					ImGui::TreePop();
+				}
+				
+				
 				ImGui::TreePop();
 			}
 		}		
@@ -340,6 +380,15 @@ void Application::ImGuiPrintSelectedVoxelInfo(SparseTerrainVoxelOctree& octree)
 }
 void Application::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
-	i8 val = sOctree->GetVoxelAt(SelectedVoxel);
-	sOctree->SetVoxelAt(SelectedVoxel, yoffset < 0 ? val - 1 : val + 1);
+	if (bDebugVoxels)
+	{
+		i8 val = sOctree->GetVoxelAt(SelectedVoxel);
+		sOctree->SetVoxelAt(SelectedVoxel, yoffset < 0 ? val - 1 : val + 1);
+	}
+	else
+	{
+		DebugCamera.MovementSpeed += yoffset < 0 ? -100 : 100;
+		Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+		DebugCamera.MovementSpeed = std::clamp(DebugCamera.MovementSpeed, app->MinCameraSpeed, app->MaxCameraSpeed);
+	}
 }
