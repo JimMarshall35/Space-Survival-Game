@@ -338,7 +338,7 @@ struct GridCell
    Linearly interpolate the position where an isosurface cuts
    an edge between two vertices, each with their own scalar value
 */
-TerrainVertex VertexInterp(const glm::vec3 &p1,const glm::vec3 &p2,float valp1,float valp2, glm::ivec3& coords1, glm::ivec3& coords2, i8* voxels)
+TerrainVertex VertexInterp(const glm::vec3 &p1,const glm::vec3 &p2,float valp1,float valp2, glm::ivec3& coords1, glm::ivec3& coords2, i8* voxels, ITerrainOctreeNode* cellToPolygonize)
 {
 	auto GetVoxelValueAt = [](u8 x, u8 y, u8 z, i8* voxels) -> i8
 	{
@@ -356,13 +356,17 @@ TerrainVertex VertexInterp(const glm::vec3 &p1,const glm::vec3 &p2,float valp1,f
 		(float)GetVoxelValueAt(coords2.x, coords2.y, coords2.z - 1,voxels) - (float)GetVoxelValueAt(coords2.x, coords2.y, coords2.z + 1,voxels)
 	});
 	TerrainVertex v;
-	v.Position =  (p1 + (-valp1 / (valp2 - valp1)) * (p2 - p1));
-	v.Normal = glm::normalize(normal1 + (-valp1 / (valp2 - valp1)) * (normal2 - normal1));
+	float mu = -valp1 / (valp2 - valp1);
+	v.Position =  (p1 + mu * (p2 - p1));
+	v.Normal = glm::normalize(normal1 + mu * (normal2 - normal1));
+	
+	
+	
 	return v;
 }
 #pragma optimize("", on)
 
-int Polygonise(GridCell &Grid, int &NewVertexCount, TerrainVertex *Vertices, int& newIndicesCount, char* indices, i8* voxels)
+int Polygonise(GridCell &Grid, int &NewVertexCount, TerrainVertex *Vertices, int& newIndicesCount, char* indices, i8* voxels, ITerrainOctreeNode* node)
 {
 	int CubeIndex;
 
@@ -388,51 +392,51 @@ int Polygonise(GridCell &Grid, int &NewVertexCount, TerrainVertex *Vertices, int
 
 	//Find the vertices where the surface intersects the cube
 	if (edgeTable[CubeIndex] & 1) {
-		VertexList[0] = VertexInterp(Grid.p[0],Grid.p[1],Grid.val[0],Grid.val[1],Grid.coords[0],Grid.coords[1],voxels);
+		VertexList[0] = VertexInterp(Grid.p[0],Grid.p[1],Grid.val[0],Grid.val[1],Grid.coords[0],Grid.coords[1],voxels, node);
 	}
 		
 	if (edgeTable[CubeIndex] & 2) {
-		VertexList[1] = VertexInterp(Grid.p[1],Grid.p[2],Grid.val[1],Grid.val[2],Grid.coords[1],Grid.coords[2],voxels);
+		VertexList[1] = VertexInterp(Grid.p[1],Grid.p[2],Grid.val[1],Grid.val[2],Grid.coords[1],Grid.coords[2],voxels, node);
 	}
 		
 	if (edgeTable[CubeIndex] & 4) {
-		VertexList[2] = VertexInterp(Grid.p[2],Grid.p[3],Grid.val[2],Grid.val[3],Grid.coords[2],Grid.coords[3],voxels);
+		VertexList[2] = VertexInterp(Grid.p[2],Grid.p[3],Grid.val[2],Grid.val[3],Grid.coords[2],Grid.coords[3],voxels, node);
 	}
 		
 	if (edgeTable[CubeIndex] & 8) {
-		VertexList[3] = VertexInterp(Grid.p[3],Grid.p[0],Grid.val[3],Grid.val[0],Grid.coords[3],Grid.coords[0],voxels);
+		VertexList[3] = VertexInterp(Grid.p[3],Grid.p[0],Grid.val[3],Grid.val[0],Grid.coords[3],Grid.coords[0],voxels, node);
 	}
 
 	if (edgeTable[CubeIndex] & 16) {
-		VertexList[4] = VertexInterp(Grid.p[4],Grid.p[5],Grid.val[4],Grid.val[5],Grid.coords[4],Grid.coords[5],voxels);
+		VertexList[4] = VertexInterp(Grid.p[4],Grid.p[5],Grid.val[4],Grid.val[5],Grid.coords[4],Grid.coords[5],voxels, node);
 	}
 		
 	if (edgeTable[CubeIndex] & 32) {
-		VertexList[5] = VertexInterp(Grid.p[5],Grid.p[6],Grid.val[5],Grid.val[6],Grid.coords[5],Grid.coords[6],voxels);
+		VertexList[5] = VertexInterp(Grid.p[5],Grid.p[6],Grid.val[5],Grid.val[6],Grid.coords[5],Grid.coords[6],voxels, node);
 	}
 
 	if (edgeTable[CubeIndex] & 64) {
-		VertexList[6] = VertexInterp(Grid.p[6],Grid.p[7],Grid.val[6],Grid.val[7],Grid.coords[6],Grid.coords[7],voxels);
+		VertexList[6] = VertexInterp(Grid.p[6],Grid.p[7],Grid.val[6],Grid.val[7],Grid.coords[6],Grid.coords[7],voxels, node);
 	}
 		
 	if (edgeTable[CubeIndex] & 128) {
-		VertexList[7] = VertexInterp(Grid.p[7],Grid.p[4],Grid.val[7],Grid.val[4],Grid.coords[7],Grid.coords[4],voxels);
+		VertexList[7] = VertexInterp(Grid.p[7],Grid.p[4],Grid.val[7],Grid.val[4],Grid.coords[7],Grid.coords[4],voxels, node);
 	}
 		
 	if (edgeTable[CubeIndex] & 256) {
-		VertexList[8] = VertexInterp(Grid.p[0],Grid.p[4],Grid.val[0],Grid.val[4],Grid.coords[0],Grid.coords[4],voxels);
+		VertexList[8] = VertexInterp(Grid.p[0],Grid.p[4],Grid.val[0],Grid.val[4],Grid.coords[0],Grid.coords[4],voxels, node);
 	}
 
 	if (edgeTable[CubeIndex] & 512) {
-		VertexList[9] = VertexInterp(Grid.p[1],Grid.p[5],Grid.val[1],Grid.val[5],Grid.coords[1],Grid.coords[5],voxels);
+		VertexList[9] = VertexInterp(Grid.p[1],Grid.p[5],Grid.val[1],Grid.val[5],Grid.coords[1],Grid.coords[5],voxels, node);
 	}
 
 	if (edgeTable[CubeIndex] & 1024) {
-		VertexList[10] = VertexInterp(Grid.p[2],Grid.p[6],Grid.val[2],Grid.val[6],Grid.coords[2],Grid.coords[6],voxels);
+		VertexList[10] = VertexInterp(Grid.p[2],Grid.p[6],Grid.val[2],Grid.val[6],Grid.coords[2],Grid.coords[6],voxels, node);
 	}
 		
 	if (edgeTable[CubeIndex] & 2048) {
-		VertexList[11] = VertexInterp(Grid.p[3],Grid.p[7],Grid.val[3],Grid.val[7],Grid.coords[3],Grid.coords[7],voxels);
+		VertexList[11] = VertexInterp(Grid.p[3],Grid.p[7],Grid.val[3],Grid.val[7],Grid.coords[3],Grid.coords[7],voxels, node);
 	}
 		
 
@@ -587,7 +591,7 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 				int numOutputtedVerts = 0;
 				int numOutputtedIndices = 0;
 
-				Polygonise(g, numOutputtedVerts, outputtedVerts, numOutputtedIndices, outputtedIndices,rVal->VoxelData);
+				Polygonise(g, numOutputtedVerts, outputtedVerts, numOutputtedIndices, outputtedIndices,rVal->VoxelData, cellToPolygonize);
 
 				for (int i = 0; i < numOutputtedIndices; i++)
 				{

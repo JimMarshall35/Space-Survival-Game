@@ -18,4 +18,5 @@ public:
 	virtual size_t GetSize() const = 0;
 	virtual ITerrainOctreeNode* FindNodeFromIndex(TerrainOctreeIndex index, bool createIfDoesntExist = false) = 0;
 	virtual void AllocateNodeVoxelData(ITerrainOctreeNode* node) = 0;
+	virtual ITerrainOctreeNode* GetParentNode() = 0;
 };

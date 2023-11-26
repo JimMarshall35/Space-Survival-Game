@@ -74,6 +74,8 @@ public:
 
 	virtual void AllocateNodeVoxelData(ITerrainOctreeNode* node) override;
 
+	virtual ITerrainOctreeNode* GetParentNode() override { return &ParentNode; };
+
 	//IVoxelDataSource end
 
 	// return a list of TerrainOctreeNodes to render.
