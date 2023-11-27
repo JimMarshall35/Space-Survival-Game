@@ -26,6 +26,12 @@ void ThreadsafePrint(const char* format, ...)
 	vprintf_s(format, args);
 }
 
+//void TestProceduralTerrainVoxelPopulator::PopulateSingleNode(IVoxelDataSource* dataSrcToWriteTo, ITerrainOctreeNode* node)
+//{
+//
+//}
+
+
 void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* dataSrcToWriteTo)
 {
 	ITerrainOctreeNode* onNode = dataSrcToWriteTo->GetParentNode();
@@ -35,6 +41,7 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	float maxHeight = 1000.0f;
 	float planeHeight = 200.0f;
 	std::vector<std::future<void>> futures;
+
 	for (i32 z = 0; z < 2; z++)
 	{
 		for (i32 y = 0; y < 2; y++)

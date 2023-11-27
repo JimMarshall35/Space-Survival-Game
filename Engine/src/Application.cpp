@@ -280,6 +280,7 @@ void Application::Run()
 				ImGui::Checkbox("VisualiseTerrainChunks", &bDebugDrawChunks);
 				ImGui::Checkbox("DebugVoxels", &bDebugVoxels);
 				ImGui::Checkbox("Refresh chunks", &bRefreshChunks);
+				ImGui::Checkbox("Exact fit", &polygonizer.bExactFit);
 				if (bDebugVoxels)
 				{
 					DrawBoxAroundSelectedVoxel();

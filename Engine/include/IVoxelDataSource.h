@@ -19,4 +19,5 @@ public:
 	virtual ITerrainOctreeNode* FindNodeFromIndex(TerrainOctreeIndex index, bool createIfDoesntExist = false) = 0;
 	virtual void AllocateNodeVoxelData(ITerrainOctreeNode* node) = 0;
 	virtual ITerrainOctreeNode* GetParentNode() = 0;
+	virtual void CreateChildrenForFirstNMipLevels(ITerrainOctreeNode* node, int n, int onLevel=0) = 0;
 };

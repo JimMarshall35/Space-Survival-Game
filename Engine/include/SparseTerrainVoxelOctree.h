@@ -76,6 +76,8 @@ public:
 
 	virtual ITerrainOctreeNode* GetParentNode() override { return &ParentNode; };
 
+	virtual void CreateChildrenForFirstNMipLevels(ITerrainOctreeNode* node, int n, int onLevel) override;
+
 	//IVoxelDataSource end
 
 	// return a list of TerrainOctreeNodes to render.
@@ -87,6 +89,8 @@ public:
 		std::vector<ITerrainOctreeNode*>& outNodesToRender);
 
 private:
+
+	void PopulateSingleMipLevel(SparseTerrainOctreeNode* node);
 
 	TerrainOctreeIndex SetVoxelAt_Internal(const glm::ivec3& location, i8 value);
 

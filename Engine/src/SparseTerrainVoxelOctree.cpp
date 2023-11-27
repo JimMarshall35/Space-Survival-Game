@@ -343,3 +343,45 @@ void SparseTerrainVoxelOctree::AllocateNodeVoxelData(ITerrainOctreeNode* node)
 	static const size_t voxelDataAllocationSize = BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE;
 	node->SetVoxelData(IAllocator::NewArray<i8>(Allocator, voxelDataAllocationSize));
 }
+
+void SparseTerrainVoxelOctree::CreateChildrenForFirstNMipLevels(ITerrainOctreeNode* node, int n, int onLevel)
+{
+	SparseTerrainOctreeNode* cast = static_cast<SparseTerrainOctreeNode*>(node);
+	PopulateSingleMipLevel(cast);
+	++onLevel;
+	if (onLevel == n)
+	{
+		return;
+	}
+	for (int i = 0; i < 8; i++)
+	{
+		CreateChildrenForFirstNMipLevels(cast->Children[i], n, onLevel);
+	}
+}
+
+void SparseTerrainVoxelOctree::PopulateSingleMipLevel(SparseTerrainOctreeNode* node)
+{
+	int startMip = node->GetMipLevel();
+	int onMip = startMip;
+	for (i32 z = 0; z < 2; z++)
+	{
+		for (i32 y = 0; y < 2; y++)
+		{
+			for (i32 x = 0; x < 2; x++)
+			{
+				i32 i = x + (2 * y) + (4 * z);
+				i32 childDims = node->SizeInVoxels / 2;
+				i32 childMipLevel = node->MipLevel - 1;
+
+				glm::ivec3& childBL = glm::ivec3
+				{
+					node->BottomLeftCorner.x + x * childDims,
+					node->BottomLeftCorner.y + y * childDims,
+					node->BottomLeftCorner.z + z * childDims
+				};
+				node->Children[i] = IAllocator::New<SparseTerrainOctreeNode>(Allocator);
+				new(node->Children[i])SparseTerrainOctreeNode(childMipLevel, childBL, childDims);
+			}
+		}
+	}
+}
