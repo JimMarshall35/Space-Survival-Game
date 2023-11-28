@@ -188,14 +188,14 @@ ITerrainOctreeNode* SparseTerrainVoxelOctree::FindNodeFromIndex(TerrainOctreeInd
 	for (u32 i = 0; i < ParentNode.MipLevel; i++)
 	{
 		u32 thisIndex = (index >> (4 * i)) & 0x0f;
-		onNode = onNode->Children[thisIndex];
+		
 		if (createIfDoesntExist)
 		{
 			i32 childDims = onNode->SizeInVoxels / 2;
 			i32 childMipLevel = onNode->MipLevel - 1;
-			i32 x = thisIndex & 1;
-			i32 y = thisIndex & 2;
-			i32 z = thisIndex & 4;
+			i32 x = (thisIndex & 1);
+			i32 y = (thisIndex & 2) >> 1;
+			i32 z = (thisIndex & 4) >> 2;
 			glm::ivec3& childBL = glm::ivec3
 			{
 				onNode->BottomLeftCorner.x + x * childDims,
@@ -209,6 +209,7 @@ ITerrainOctreeNode* SparseTerrainVoxelOctree::FindNodeFromIndex(TerrainOctreeInd
 		else
 		{
 			assert(onNode);
+			onNode = onNode->Children[thisIndex];
 		}
 	}
 	return onNode;

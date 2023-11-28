@@ -26,13 +26,13 @@ namespace OctreeSerialisation
 
 	void WriteNode(std::ofstream& ofs, TerrainOctreeIndex index, ITerrainOctreeNode* node)
 	{
-		ofs << index;
+		ofs.write((char*)&index, sizeof(TerrainOctreeIndex));
 		ofs.write((const char*)node->GetVoxelData(), BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE);
 	}
 
 	void SaveNewlyGeneratedToFile(const std::unordered_set<TerrainOctreeIndex>& setNodes, IVoxelDataSource* voxelDataSource, const char* path)
 	{
-		std::ofstream ofs(path, std::ofstream::binary);
+		std::ofstream ofs(path, std::ios::out | std::ofstream::binary);
 		if(!ofs)
 		{
 			std::cout << "Cannot open file.\n";
@@ -54,7 +54,7 @@ namespace OctreeSerialisation
 
 	void LoadFromFile(IVoxelDataSource* voxelDataSource, const char* path)
 	{
-		std::ifstream ifs(path, std::ofstream::binary);
+		std::ifstream ifs(path, std::ios::in | std::ofstream::binary);
 		VoxelFileHeader header;
 		ReadHeader(ifs, header);
 		if (header.Version != CURRENT_FILE_FORMAT_VERSION)
@@ -64,14 +64,15 @@ namespace OctreeSerialisation
 
 		for (int i = 0; i < header.NumNodes; i++)
 		{
-			u64 index;
-			ifs >> index;
+			TerrainOctreeIndex index;
+			ifs.read((char*)&index, sizeof(TerrainOctreeIndex));
 			ITerrainOctreeNode* node = voxelDataSource->FindNodeFromIndex(index, true);
 			if (node->GetVoxelData() == nullptr)
 			{
 				voxelDataSource->AllocateNodeVoxelData(node);
 			}
 			ifs.read((char*)node->GetVoxelData(), BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE);
+			//printf("hello");
 		}
 	}
 }

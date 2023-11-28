@@ -5,7 +5,6 @@
 #include "SimplexNoise.h"
 #include <algorithm>
 #include <iostream>
-#include <unordered_set>
 #include "OctreeSerialisationLibrary.h"
 #include <cstdarg>
 #include <stdio.h>
@@ -17,6 +16,7 @@ TestProceduralTerrainVoxelPopulator::TestProceduralTerrainVoxelPopulator(const s
 {
 }
 
+
 static std::mutex sPrintMutex;
 void ThreadsafePrint(const char* format, ...)
 {
@@ -26,14 +26,46 @@ void ThreadsafePrint(const char* format, ...)
 	vprintf_s(format, args);
 }
 
-//void TestProceduralTerrainVoxelPopulator::PopulateSingleNode(IVoxelDataSource* dataSrcToWriteTo, ITerrainOctreeNode* node)
-//{
-//
-//}
+static int numDecks = 8*8*512;
+static int decksCompleted = 0;
+void OnDeckCompleted()
+{
+	std::lock_guard<std::mutex>lg(sPrintMutex);
+	printf("%f percent complete\n", ((float)++decksCompleted / (float)numDecks) * 100.0f);
+}
+
+void TestProceduralTerrainVoxelPopulator::PopulateSingleNode(IVoxelDataSource* dataSrcToWriteTo, ITerrainOctreeNode* node, SimplexNoise& noise, std::unordered_set<TerrainOctreeIndex>* output )
+{
+	glm::ivec3 childBL = node->GetBottomLeftCorner();
+	int childDims = node->GetSizeInVoxels();
+	std::ostringstream id;
+	std::string sid;
+	float planeHeight = 200.0f;
+	if (sid.empty())
+	{
+		id << std::this_thread::get_id();
+		sid = id.str();
+	}
+	for (int tz = childBL.z; tz < childBL.z + childDims; tz++)
+	{
+		for (int ty = childBL.y; ty < childBL.y + childDims; ty++)
+		{
+			for (int tx = childBL.x; tx < childBL.x + childDims; tx++)
+			{
+				float noiseVal = noise.fractal(4, tx * 0.001f, tz * 0.001f);
+				float val = (planeHeight + noiseVal * 100.0f) - ty;
+				TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ tx,ty,tz }, std::clamp(-val*10.0f, -127.0f, 127.0f));
+			}
+		}
+		OnDeckCompleted();
+	}
+}
 
 
 void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* dataSrcToWriteTo)
 {
+	//OctreeSerialisation::LoadFromFile(dataSrcToWriteTo,"level.vox");
+	//return;
 	ITerrainOctreeNode* onNode = dataSrcToWriteTo->GetParentNode();
 	glm::ivec3 bl = onNode->GetBottomLeftCorner();
 	int childDims = onNode->GetSizeInVoxels() / 2;
@@ -41,49 +73,51 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	float maxHeight = 1000.0f;
 	float planeHeight = 200.0f;
 	std::vector<std::future<void>> futures;
-
-	for (i32 z = 0; z < 2; z++)
+	std::unordered_set<TerrainOctreeIndex> cellsWrittenTo[8];
+	decksCompleted = 0;
+	if (ThreadPool->NumWorkers() > 8)
 	{
-		for (i32 y = 0; y < 2; y++)
+		// if we have more than 8 threads then queue a task for each of the first 2 mip levels,
+		// 64 nodes in total
+		numDecks = 8*8*512;
+		
+		dataSrcToWriteTo->CreateChildrenForFirstNMipLevels(onNode, 2);
+		for (int i = 0; i < 8; i++)
 		{
-			for (i32 x = 0; x < 2; x++)
+			for (int j = 0; j < 8; j++)
 			{
-				i32 i = x + (2 * y) + (4 * z);
-				glm::ivec3& childBL =
-					glm::ivec3{
-						bl.x + x * childDims,
-						bl.y + y * childDims,
-						bl.z + z * childDims
-				};
-				
-				futures.push_back(ThreadPool->enqueue([&, childBL]() {
-					std::ostringstream id;
-					std::string sid;
-
-					if (sid.empty())
-					{
-						id << std::this_thread::get_id();
-						sid = id.str();
-					}
-					for (int tz = childBL.z; tz < childBL.z + childDims; tz++)
-					{
-						for (int ty = childBL.y; ty < childBL.y + childDims; ty++)
-						{
-							for (int tx = childBL.x; tx < childBL.x + childDims; tx++)
-							{
-								float noiseVal = noise.fractal(3, tx * 0.001f, tz * 0.001f);
-								float val = (planeHeight + noiseVal * 100.0f) - ty;
-								TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ tx,ty,tz }, std::clamp(-val*10.0f, -127.0f, 127.0f));
-							}
-						}
-						ThreadsafePrint("thread ID %s. Z: %i. Complete: %f\n", sid.c_str(), tz, ((float)(tz - childBL.z) / (float)childDims) * 100.0f);
-					}
+				ITerrainOctreeNode* child = onNode->GetChild(i)->GetChild(j);
+				futures.push_back(ThreadPool->enqueue([&,child,dataSrcToWriteTo]() {
+					PopulateSingleNode(dataSrcToWriteTo, child, noise, &cellsWrittenTo[i]);
 				}));
 			}
 		}
 	}
+	else
+	{
+		// if we have <= 8 workers then queue 8 nodes to be generated
+		numDecks = 8*512;
+		dataSrcToWriteTo->CreateChildrenForFirstNMipLevels(onNode, 1);
+		for (int i = 0; i < 8; i++)
+		{
+			ITerrainOctreeNode* child = onNode->GetChild(i);
+			futures.push_back(ThreadPool->enqueue([&,child,dataSrcToWriteTo]() {
+				PopulateSingleNode(dataSrcToWriteTo, child, noise, &cellsWrittenTo[i]);
+			}));
+		}
+	}
+	
+
 	for (auto& future : futures)
 	{
 		future.wait();
 	}
+	std::unordered_set<TerrainOctreeIndex> allThreads;
+	for (int i = 0; i < 8; i++)
+	{
+		cellsWrittenTo[i].erase(0xffffffffffffffff);
+		allThreads.merge(cellsWrittenTo[i]);
+		assert(cellsWrittenTo[i].size() == 0);
+	}
+	OctreeSerialisation::SaveNewlyGeneratedToFile(allThreads, dataSrcToWriteTo, "level.vox");
 }

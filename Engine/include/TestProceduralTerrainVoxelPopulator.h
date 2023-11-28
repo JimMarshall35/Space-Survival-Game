@@ -3,6 +3,8 @@
 #include <memory>
 #include <vector>
 #include <future>
+#include <unordered_set>
+#include "OctreeTypes.h"
 
 class ITerrainVoxelPopulator;
 class ITerrainOctreeNode;
@@ -20,7 +22,7 @@ public:
 	// Inherited via ITerrainVoxelPopulator
 	virtual void PopulateTerrain(IVoxelDataSource* dataSrcToWriteTo) override;
 private:
-	//void PopulateSingleNode(IVoxelDataSource* dataSrcToWriteTo, ITerrainOctreeNode* node, std::vector<std::future<void>>& futures, SimplexNoise& noise);
+	void PopulateSingleNode(IVoxelDataSource* dataSrcToWriteTo, ITerrainOctreeNode* node, SimplexNoise& noise, std::unordered_set<TerrainOctreeIndex>* output);
 private:
 	std::shared_ptr<rdx::thread_pool> ThreadPool;
 };
