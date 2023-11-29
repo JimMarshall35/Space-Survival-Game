@@ -328,7 +328,7 @@ char triTable[256][16] =
 
 
 
-#pragma optimize("", off)
+//#pragma optimize("", off)
 /*
    Linearly interpolate the position where an isosurface cuts
    an edge between two vertices, each with their own scalar value
@@ -416,7 +416,7 @@ TerrainVertex TerrainPolygonizer::VertexInterp( glm::vec3 p1, glm::vec3 p2,float
 
 	return v;
 }
-#pragma optimize("", on)
+//#pragma optimize("", on)
 
 int TerrainPolygonizer::Polygonise(GridCell &Grid, int &NewVertexCount, TerrainVertex *Vertices, int& newIndicesCount, char* indices, i8* voxels, ITerrainOctreeNode* node, IVoxelDataSource* source)
 {

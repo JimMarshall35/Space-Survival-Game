@@ -52,7 +52,7 @@ void TestProceduralTerrainVoxelPopulator::PopulateSingleNode(IVoxelDataSource* d
 		{
 			for (int tx = childBL.x; tx < childBL.x + childDims; tx++)
 			{
-				float noiseVal = noise.fractal(4, tx * 0.001f, tz * 0.001f);
+				float noiseVal = noise.fractal(8, tx * 0.001f, ty * 0.001f, tz * 0.001f);
 				float val = (planeHeight + noiseVal * 100.0f) - ty;
 				TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ tx,ty,tz }, std::clamp(-val*10.0f, -127.0f, 127.0f));
 			}
@@ -66,6 +66,14 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 {
 	//OctreeSerialisation::LoadFromFile(dataSrcToWriteTo,"level.vox");
 	//return;
+
+	using std::chrono::high_resolution_clock;
+	using std::chrono::duration_cast;
+	using std::chrono::duration;
+	using std::chrono::milliseconds;
+
+	auto t1 = high_resolution_clock::now();
+
 	ITerrainOctreeNode* onNode = dataSrcToWriteTo->GetParentNode();
 	glm::ivec3 bl = onNode->GetBottomLeftCorner();
 	int childDims = onNode->GetSizeInVoxels() / 2;
@@ -96,7 +104,7 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	else
 	{
 		// if we have <= 8 workers then queue 8 nodes to be generated
-		numDecks = 8*512;
+		numDecks = 8*1024;
 		dataSrcToWriteTo->CreateChildrenForFirstNMipLevels(onNode, 1);
 		for (int i = 0; i < 8; i++)
 		{
@@ -112,12 +120,19 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	{
 		future.wait();
 	}
-	std::unordered_set<TerrainOctreeIndex> allThreads;
+	/*std::unordered_set<TerrainOctreeIndex> allThreads;
 	for (int i = 0; i < 8; i++)
 	{
 		cellsWrittenTo[i].erase(0xffffffffffffffff);
 		allThreads.merge(cellsWrittenTo[i]);
 		assert(cellsWrittenTo[i].size() == 0);
-	}
-	OctreeSerialisation::SaveNewlyGeneratedToFile(allThreads, dataSrcToWriteTo, "level.vox");
+	}*/
+	auto t2 = high_resolution_clock::now();
+
+	/* Getting number of milliseconds as an integer. */
+	auto ms_int = duration_cast<milliseconds>(t2 - t1);
+
+	std::cout << "done in " << ms_int.count() << "ms\n";
+
+	//OctreeSerialisation::SaveNewlyGeneratedToFile(allThreads, dataSrcToWriteTo, "level.vox");
 }
