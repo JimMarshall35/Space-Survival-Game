@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <sstream>
 #include "ITerrainOctreeNode.h"
+#include <chrono>
 
 TestProceduralTerrainVoxelPopulator::TestProceduralTerrainVoxelPopulator(const std::shared_ptr<rdx::thread_pool>& threadPool)
 	:ThreadPool(threadPool)
@@ -38,22 +39,16 @@ void TestProceduralTerrainVoxelPopulator::PopulateSingleNode(IVoxelDataSource* d
 {
 	glm::ivec3 childBL = node->GetBottomLeftCorner();
 	int childDims = node->GetSizeInVoxels();
-	std::ostringstream id;
-	std::string sid;
 	float planeHeight = 200.0f;
-	if (sid.empty())
-	{
-		id << std::this_thread::get_id();
-		sid = id.str();
-	}
+
 	for (int tz = childBL.z; tz < childBL.z + childDims; tz++)
 	{
 		for (int ty = childBL.y; ty < childBL.y + childDims; ty++)
 		{
 			for (int tx = childBL.x; tx < childBL.x + childDims; tx++)
 			{
-				float noiseVal = noise.fractal(4, tx * 0.001f, tz * 0.001f);
-				float val = (planeHeight + noiseVal * 100.0f) - ty;
+				float noiseVal = noise.fractal(7, 2.0*tx * 0.001f,  ty * 0.0001f, 2.0*tz * 0.001f);
+				float val = (planeHeight + noiseVal * 200.0f) - ty;
 				TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ tx,ty,tz }, std::clamp(-val*10.0f, -127.0f, 127.0f));
 			}
 		}
@@ -66,8 +61,8 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 {
 	//OctreeSerialisation::LoadFromFile(dataSrcToWriteTo,"level.vox");
 	//return;
+	auto clock_start = std::chrono::system_clock::now();
 	ITerrainOctreeNode* onNode = dataSrcToWriteTo->GetParentNode();
-	glm::ivec3 bl = onNode->GetBottomLeftCorner();
 	int childDims = onNode->GetSizeInVoxels() / 2;
 	SimplexNoise noise;
 	float maxHeight = 1000.0f;
@@ -112,6 +107,10 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	{
 		future.wait();
 	}
+	auto clock_now = std::chrono::system_clock::now();
+	float currentTime = float(std::chrono::duration_cast<std::chrono::microseconds> (clock_now - clock_start).count());
+	std::cout << childDims << " voxel cube done in: " << currentTime /1000000 << " S \n";
+
 	std::unordered_set<TerrainOctreeIndex> allThreads;
 	for (int i = 0; i < 8; i++)
 	{

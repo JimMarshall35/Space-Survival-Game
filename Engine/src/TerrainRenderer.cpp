@@ -137,7 +137,7 @@ void TerrainRenderer::UploadNewlyPolygonizedToGPU(PolygonizeWorkerThreadData* da
     glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, data->OutputtedIndices * sizeof(u32), data->Indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, data->OutputtedIndices * sizeof(u32), data->Tris, GL_STATIC_DRAW); // WILL BREAK IF OLD MARCHING CUBES USED - data->Tris needs to be changed to whatever it used to be
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
