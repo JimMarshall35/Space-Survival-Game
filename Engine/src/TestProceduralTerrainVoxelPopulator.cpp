@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <sstream>
 #include "ITerrainOctreeNode.h"
+#include <chrono>
 
 TestProceduralTerrainVoxelPopulator::TestProceduralTerrainVoxelPopulator(const std::shared_ptr<rdx::thread_pool>& threadPool)
 	:ThreadPool(threadPool)
@@ -38,22 +39,16 @@ void TestProceduralTerrainVoxelPopulator::PopulateSingleNode(IVoxelDataSource* d
 {
 	glm::ivec3 childBL = node->GetBottomLeftCorner();
 	int childDims = node->GetSizeInVoxels();
-	std::ostringstream id;
-	std::string sid;
 	float planeHeight = 200.0f;
-	if (sid.empty())
-	{
-		id << std::this_thread::get_id();
-		sid = id.str();
-	}
+
 	for (int tz = childBL.z; tz < childBL.z + childDims; tz++)
 	{
 		for (int ty = childBL.y; ty < childBL.y + childDims; ty++)
 		{
 			for (int tx = childBL.x; tx < childBL.x + childDims; tx++)
 			{
-				float noiseVal = noise.fractal(8, tx * 0.001f, ty * 0.001f, tz * 0.001f);
-				float val = (planeHeight + noiseVal * 100.0f) - ty;
+				float noiseVal = noise.fractal(4, 2.0*tx * 0.001f,  ty * 0.0001f, 2.0*tz * 0.001f);
+				float val = (planeHeight + noiseVal * 200.0f) - ty;
 				TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ tx,ty,tz }, std::clamp(-val*10.0f, -127.0f, 127.0f));
 			}
 		}
@@ -75,7 +70,6 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	auto t1 = high_resolution_clock::now();
 
 	ITerrainOctreeNode* onNode = dataSrcToWriteTo->GetParentNode();
-	glm::ivec3 bl = onNode->GetBottomLeftCorner();
 	int childDims = onNode->GetSizeInVoxels() / 2;
 	SimplexNoise noise;
 	float maxHeight = 1000.0f;
@@ -120,13 +114,7 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	{
 		future.wait();
 	}
-	/*std::unordered_set<TerrainOctreeIndex> allThreads;
-	for (int i = 0; i < 8; i++)
-	{
-		cellsWrittenTo[i].erase(0xffffffffffffffff);
-		allThreads.merge(cellsWrittenTo[i]);
-		assert(cellsWrittenTo[i].size() == 0);
-	}*/
+
 	auto t2 = high_resolution_clock::now();
 
 	/* Getting number of milliseconds as an integer. */

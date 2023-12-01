@@ -17,6 +17,9 @@ public:
 	// Inherited via ITerrainPolygonizer
 	virtual std::future<PolygonizeWorkerThreadData*> PolygonizeNodeAsync(ITerrainOctreeNode* node, IVoxelDataSource* source) override;
 	PolygonizeWorkerThreadData* PolygonizeCellSync(ITerrainOctreeNode* cellToPolygonize, IVoxelDataSource* source);
+	
+	/* modified marching cubes as in transvoxel paper - shares vertices better - interpolates positions as fixed point numbers */
+	PolygonizeWorkerThreadData* PolygonizeCellSyncMMC(ITerrainOctreeNode* cellToPolygonize, IVoxelDataSource* source);
 public:
 	bool bExactFit = false;
 private:
@@ -26,10 +29,14 @@ private:
 		glm::vec3 p[8];
 		glm::ivec3 coords[8];
 	};
+	struct CellStorage
+	{
+		u16 Corner[7];
+		u16 Edge[9];
+	};
 private:
 	TerrainVertex VertexInterp( glm::vec3 p1, glm::vec3 p2,float valp1,float valp2, glm::ivec3& coords1, glm::ivec3& coords2, i8* voxels, ITerrainOctreeNode* cellToPolygonize, IVoxelDataSource* source);
 	int Polygonise(GridCell &Grid, int &NewVertexCount, TerrainVertex *Vertices, int& newIndicesCount, char* indices, i8* voxels, ITerrainOctreeNode* node, IVoxelDataSource* source);
-
 private:
 	std::shared_ptr<rdx::thread_pool> ThreadPool;
 	IAllocator* Allocator;

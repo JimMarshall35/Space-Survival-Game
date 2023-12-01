@@ -6,6 +6,7 @@
 #include "Core.h"
 
 struct ITerrainOctreeNode;
+struct Triangle;
 class IVoxelDataSource;
 class IAllocator;
 
@@ -33,6 +34,7 @@ struct APP_API PolygonizeWorkerThreadData
 {
 	TerrainVertex* Vertices;
 	u32* Indices;
+	Triangle* Tris;
 	u32 VerticesSize;
 	u32 IndicesSize;
 	u32 OutputtedVertices;
