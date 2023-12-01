@@ -40,7 +40,7 @@ namespace rdx {
 
         size_t NumWorkers() { return workers.size(); }
     };
-
+    
     template<class F, class ...Args>
     inline std::future<typename std::result_of<F(Args ...)>::type> thread_pool::enqueue(F&& f, Args && ...args) {
         using return_type = typename std::result_of<F(Args...)>::type;

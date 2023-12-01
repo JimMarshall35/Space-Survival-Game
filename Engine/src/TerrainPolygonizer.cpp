@@ -12,7 +12,6 @@
 #define TERRAIN_FIXED_FRACTION_SIZE_BITS 8
 #define TERRAIN_FIXED_FRACTION_MAX 0xff
 
-#define Q 8
 #define K   (1 << (Q - 1))
 
 TerrainPolygonizer::TerrainPolygonizer(IAllocator* allocator, std::shared_ptr<rdx::thread_pool> threadPool)
@@ -1067,7 +1066,90 @@ inline u16 ReuseEdgeVertex(i32 n, i32 i, i32 j, CellStorage *const (& deckStorag
 }
 
 // Listing 10.23
+//#pragma optimize("", off)
+
+int32_t _FP_SquareRoot(int32_t val, int32_t Q) {
+  int32_t sval = 0;
+ 
+  //convert Q to even
+  if (Q & 0x01) {
+    Q -= 1;
+    val >>= 1;
+  }
+  //integer square root math
+  for (uint8_t i=0; i<=30; i+=2) {
+    if ((0x40000001>>i) + sval <= val) {  
+      val -= (0x40000001>>i) + sval;     
+      sval = (sval>>1) | (0x40000001>>i);
+    } else {
+      sval = sval>>1;
+    }
+  }
+  if (sval < val) 
+    ++sval;  
+  //this is the square root in Q format
+  sval <<= (Q)/2;
+  //convert the square root to Q15 format
+  if (Q < 15)
+    return(sval<<(15 - Q));
+  else
+    return(sval>>(Q - 15));
+}
+
 #pragma optimize("", off)
+typedef signed long fix;
+#define FIXED_POINT_FRACTIONAL_BITS 8
+#define multfix(a,b) (fix)(((((signed long long) a))*(((signed long long) b)) >> 8))
+
+#define divfix(a,b) ((fix)((( signed long long)(a) / (b) << 8)))
+
+#define int2fix(a) (fix)((a) << 8)
+#define fix2int(a) ((int))((a >> 8))
+#define fix2float(input) ((float)input / (float)(1 << FIXED_POINT_FRACTIONAL_BITS))
+#define float2fix(input) ((fix)(round(input * (1 << FIXED_POINT_FRACTIONAL_BITS))))
+#define sqrtfix(a) (float2fix(sqrt(fix2float(a))))
+
+Integer3D NormalizeFixedPointVector(const Integer3D& inVec)
+{
+	float v1 = 3.0f;
+	float v2 = 1.5f;
+	fix f1 = float2fix(v1);
+	fix f2 = float2fix(v2);
+	fix prod = multfix(f1,f2);
+	float asFloat = fix2float(prod);
+
+	float v3 = 3.0f;
+	float v4 = 1.5;
+	fix f3 = float2fix(v1);
+	fix f4 = float2fix(v2);
+	fix prod2 = divfix(f1,f2);
+	float asFloat2 = fix2float(prod2);
+
+	fix x2 = multfix(inVec.x, inVec.x);
+	fix y2 = multfix(inVec.y, inVec.y);
+	fix z2 = multfix(inVec.z, inVec.z);
+	fix length = sqrtfix((x2 + y2 + z2));
+	float fLength = fix2float(length);
+	Integer3D val =  
+	{
+		length ? divfix(x2,length) : 0,
+		length ? divfix(y2,length) : 0,
+		length ? divfix(z2,length) : 0
+	};
+	/*
+	length = sqrt(x*x, y*y, z*z)
+	
+	*/
+	glm::vec3 fp = 
+		{
+			fix2float(val.x),
+			fix2float(val.y),
+			fix2float(val.z)
+		};
+	return val;
+}
+
+#pragma optimize("", on)
 
 void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStorage *const (& deckStorage)[2], u32 deltaMask, i32& meshVertexCount, i32& meshTriangleCount, TerrainVertexFixedPoint *meshVertexArray, Triangle *meshTriangleArray)
 {
@@ -1105,6 +1187,7 @@ void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStor
 			u16			vertexIndex;
 			u8			corner[2];
 			Integer3D		position[2];
+			Integer3D normal[2];
 
 			// Extract corner numbers from low 6 bits of vertex code.
 			u16 vcode = vertexCode[a];
@@ -1118,6 +1201,18 @@ void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStor
 			position[1].x = i + (corner[1] & 1);
 			position[1].y = j + ((corner[1] >> 1) & 1);
 			position[1].z = k + ((corner[1] >> 2) & 1);
+
+			normal[0].x = int2fix(GetVoxel(field, n, m, position[0].x-1, position[0].y, position[0].z) - GetVoxel(field, n, m, position[0].x+1, position[0].y, position[0].z));
+			normal[0].y = int2fix(GetVoxel(field, n, m, position[0].x, position[0].y-1, position[0].z) - GetVoxel(field, n, m, position[0].x, position[0].y+1, position[0].z));
+			normal[0].z = int2fix(GetVoxel(field, n, m, position[0].x, position[0].y, position[0].z-1) - GetVoxel(field, n, m, position[0].x, position[0].y, position[0].z+1));
+
+			normal[1].x = int2fix(GetVoxel(field, n, m, position[1].x-1, position[1].y, position[1].z) - GetVoxel(field, n, m, position[1].x+1, position[1].y, position[1].z));
+			normal[1].y = int2fix(GetVoxel(field, n, m, position[1].x, position[1].y-1, position[1].z) - GetVoxel(field, n, m, position[1].x, position[1].y+1, position[1].z));
+			normal[1].z = int2fix(GetVoxel(field, n, m, position[1].x, position[1].y, position[1].z-1) - GetVoxel(field, n, m, position[1].x, position[1].y, position[1].z+1));
+
+			normal[0] = NormalizeFixedPointVector(normal[0]);
+			normal[1] = NormalizeFixedPointVector(normal[1]);
+
 
 			// Calculate interpolation parameter with Equation (10.95).
 			i32 d0 = distance[corner[0]];
@@ -1142,7 +1237,7 @@ void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStor
 					vertexIndex = meshVertexCount++;
 					TerrainVertexFixedPoint *vertex = &meshVertexArray[vertexIndex];
 					vertex->Position = position[0] * t + position[1] * (0x0100 - t);
-					vertex->Normal = {0,0,0};
+					vertex->Normal = normal[0] * t + normal[1] * (0x0100 - t);
 
 					if (edgeIndex >= 3)
 					{
@@ -1184,7 +1279,7 @@ void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStor
 
 					// Shift corner position to add 8 bits of fraction.
 					meshVertexArray[vertexIndex].Position = position[c] << 8;
-					meshVertexArray[vertexIndex].Normal = {0,0,0};
+					meshVertexArray[vertexIndex].Normal = normal[c];
 				}
 
 				cellVertexIndex[a] = vertexIndex;
@@ -1277,7 +1372,6 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOc
 
 
 	CellStorage* deckStorage[2];
-	CellStorage* precedingCellStorage = IAllocator::NewArray<CellStorage>(Allocator, BASE_CELL_SIZE * BASE_CELL_SIZE * 2);
 
 
 	u32 verticesTop = 0;
@@ -1305,23 +1399,25 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOc
 	for (int i = 0; i < rVal->OutputtedVertices; i++)
 	{
 		TerrainVertexFixedPoint& fixed = fixedPointVerts[i];
-		int x = fixed.Position.x >> 8;
-		int y = fixed.Position.y >> 8;
-		int z = fixed.Position.z >> 8;
-		float fractionX = (float)(fixed.Position.x & 0xff) / 255.0f;
-		float fractionY = (float)(fixed.Position.y & 0xff) / 255.0f;
-		float fractionZ = (float)(fixed.Position.z & 0xff) / 255.0f;
+
 		rVal->Vertices[i].Position = {
-			(float)x + fractionX,
-			(float)y + fractionY,
-			(float)z + fractionZ
+			//     whole number part       +             fraction part
+			fix2float(fixed.Position.x),
+			fix2float(fixed.Position.y),
+			fix2float(fixed.Position.z)
 		};
 		rVal->Vertices[i].Position *= stepSize;
 		rVal->Vertices[i].Position += blockBottomLeft;
-		rVal->Vertices[i].Normal = {0,0,0};
+		rVal->Vertices[i].Normal = 
+		glm::normalize(glm::vec3{
+			//     whole number part     +             fraction part
+			fix2float(fixed.Normal.x),
+			fix2float(fixed.Normal.y),
+			fix2float(fixed.Normal.z)
+		});
 	}
 	
 	
 	return rVal;
 }
-#pragma optimize("", on)
+//#pragma optimize("", on)
