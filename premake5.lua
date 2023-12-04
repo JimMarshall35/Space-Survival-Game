@@ -144,6 +144,9 @@ project "Engine"
 	{
 		"{MKDIR} \"%{wks.location}Bin/Game/%{cfg.buildcfg}/%{cfg.platform}\"",
 		"{COPYFILE} \"%{wks.location}Bin/Engine/%{cfg.buildcfg}/%{cfg.platform}/%{cfg.buildtarget.basename}%{cfg.buildtarget.extension}\" \"%{wks.location}Bin/Game/%{cfg.buildcfg}/%{cfg.platform}\"",
+		"{MKDIR} \"%{wks.location}Bin/TerrainTest/%{cfg.buildcfg}/%{cfg.platform}\"",
+		"{COPYFILE} \"%{wks.location}Bin/Engine/%{cfg.buildcfg}/%{cfg.platform}/%{cfg.buildtarget.basename}%{cfg.buildtarget.extension}\" \"%{wks.location}Bin/TerrainTest/%{cfg.buildcfg}/%{cfg.platform}\"",
+
 		"rd /s /q $(SolutionDir)x64"
 	}
 
@@ -272,6 +275,119 @@ project "AllocatorTest"
 		optimize "On"
 		runtime "Release"
 
+project "TerrainTest"
+	location "TerrainTest"
+	kind "ConsoleApp"
+	language "C++"
+	cppdialect "C++17"
+	staticruntime "on"
+	systemversion "latest"
+
+	defines
+	{
+		"GLM_FORCE_SWIZZLE",
+		"GLM_FORCE_RADIANS",
+		"GLM_ENABLE_EXPERIMENTAL",
+	}
+
+	dependson
+	{
+		"Engine",
+		"glad",
+		"glfw",
+		"ImGui",
+		"GoogleTest",
+	}
+
+	targetdir "Bin/%{prj.name}/%{cfg.buildcfg}/%{cfg.platform}"
+	objdir "Bin/Intermediate/%{prj.name}/%{cfg.buildcfg}/%{cfg.platform}"
+
+	files
+	{
+		"%{prj.name}/include/**.h",
+		"%{prj.name}/src/**.cpp"
+	}
+
+	includedirs
+	{
+		"%{prj.name}/include"	
+	}
+	
+	externalincludedirs
+	{
+		"%{prj.name}/../Engine/include",
+		"vendor\\glad\\include",
+		"vendor\\glfw\\include",
+		"vendor\\imgui",
+		"vendor\\imgui\\backends",
+		"vendor\\glm\\glm",
+		"vendor\\googletest\\googletest\\include",
+		"vendor\\googletest\\googlemock\\include"
+
+	}
+
+	libdirs
+	{
+		"Bin\\Engine\\%{cfg.buildcfg}\\%{cfg.platform}",
+		"vendor\\glad\\lib\\%{cfg.buildcfg}\\%{cfg.platform}",
+		"vendor\\glfw\\build\\src\\%{cfg.buildcfg}",
+		"vendor\\imgui\\lib\\%{cfg.buildcfg}\\%{cfg.platform}",
+	}
+
+	links
+	{
+		"Engine.lib",
+		"glad.lib",
+		"glfw3.lib",
+		"imgui.lib",
+		"GoogleTest"
+	}
+
+	filter "configurations:Debug"
+		defines { "DEBUG" }
+		symbols "On"
+		runtime "Debug"
+
+	filter "configurations:Release"
+		defines { "NDEBUG" }
+		optimize "On"
+		runtime "Release"
+		
+project "GoogleTest"
+	location "GoogleTest"
+    kind "StaticLib"
+    files
+    { 
+    	"vendor/googletest/googletest/src/gtest-all.cc",
+     	"vendor/googletest/googlemock/src/gmock-all.cc" 
+    }
+    includedirs
+    {
+    	"vendor/googletest/googletest/include", "vendor/googletest/googletest",
+    	"vendor/googletest/googlemock/include", "vendor/googletest/googlemock"
+    }
+    targetdir "Bin/%{prj.name}/%{cfg.buildcfg}/%{cfg.platform}"
+	objdir "Bin/Intermediate/%{prj.name}/%{cfg.buildcfg}/%{cfg.platform}"
+
+	filter "configurations:Debug"
+		defines { "DEBUG" }
+		symbols "On"
+		runtime "Debug"
+		staticruntime "on"
+
+	filter "configurations:Release"
+		defines { "NDEBUG" }
+		optimize "On"
+		runtime "Release"
+		staticruntime "on"
+
+	
+	postbuildcommands
+	{
+		--"{MKDIR} \"%{wks.location}Bin/ForthTest/%{cfg.buildcfg}/%{cfg.platform}\"",
+		--"{COPYFILE} \"%{wks.location}Bin/GoogleTest/%{cfg.buildcfg}/%{cfg.platform}/%{cfg.buildtarget.basename}%{cfg.buildtarget.extension}\" \"%{wks.location}Bin/ForthTest/%{cfg.buildcfg}/%{cfg.platform}\"",
+
+	}
 
 externalproject "glfw"
 	location ("%{wks.location}\\vendor\\glfw\\build\\src")

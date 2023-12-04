@@ -17,6 +17,7 @@ enum TestCmdType
 	VerifyBlockCapacities,
 	VerifyBlockCurrentSizes,
 	VerifyBlocksAreFree,
+	VerifyTopOfMemory,
 };
 
 struct ReallocData
@@ -89,7 +90,7 @@ public:
 				break; 
 			case Realloc:
 				{
-					ReallocData reallocData = std::get<ReallocData>(cmd.Data);
+					const ReallocData& reallocData = std::get<ReallocData>(cmd.Data);
 					if (reallocData.AllocationIndex < allocations.size())
 					{
 						void* ptr = allocations[reallocData.AllocationIndex];
@@ -200,7 +201,18 @@ public:
 						onBlock = onBlock->Next;
 					}
 				}
-				 break;
+				break;
+			case VerifyTopOfMemory:
+				{
+					u32 topOfDataOffset = std::get<u32>(cmd.Data);
+					if (heap.TopOfUsedMemory != (u8*)heap.RawMemory + topOfDataOffset)
+					{
+						testSuccess = false;
+						error << "cmd " << onCmdIndex << "\n";
+						error << "expected top of memory offset: " << topOfDataOffset << ". Actual: " << heap.TopOfUsedMemory - (u8*)heap.RawMemory;
+					}
+				}
+				break;
 			}
 			++onCmdIndex;
 		}
@@ -246,12 +258,18 @@ void CMD(TestCmdType type, u32 data)
 	gTestPrograms[gTestPrograms.size() - 1].Commands.push_back(TestCmd{ type, data });
 }
 
+void CMD(TestCmdType type, const ReallocData& data)
+{
+	gTestPrograms[gTestPrograms.size() - 1].Commands.push_back(TestCmd{ type, data });
+}
+
+
 void CMD(TestCmdType type, const std::vector<size_t>& data)
 {
 	TestCmd cmd;
 	cmd.type = type;
-	std::vector<size_t> vec;// = std::get<std::vector<size_t>>(cmd.Data);
-	cmd.Data.emplace<2>(data);
+	std::vector<size_t> vec;
+	cmd.Data.emplace<2>(data); // <2> for second member of variant i.e. std::vector<size_t>... weird variant API...
 	gTestPrograms[gTestPrograms.size() - 1].Commands.push_back(cmd);
 }
 
@@ -300,6 +318,18 @@ void BuildProgramList()
 		CMD(VerifyBlockCurrentSizes, {32, 6, 0, 21, 32});
 		CMD(Free, 2);
 		CMD(VerifyBlockCurrentSizes, {32, 6, 0, 32});
+
+	PROGRAM("test4 - Realloc, last block in chain, expands into empty heap", 1024);
+		CMD(Malloc, 40);
+		CMD(Malloc, 15);
+		CMD(Malloc, 128);
+		CMD(Malloc, 16);
+		CMD(VerifyTopOfMemory, sizeof(BasicHeapBlockHeader) * 4 + ROUND_UP(40,Alignment) + ROUND_UP(15, Alignment) + ROUND_UP(128, Alignment) + ROUND_UP(16, Alignment));
+		CMD(Realloc, ReallocData{ 3, 24 });
+		CMD(VerifyTopOfMemory, sizeof(BasicHeapBlockHeader) * 4 + ROUND_UP(40, Alignment) + ROUND_UP(15, Alignment) + ROUND_UP(128, Alignment) + ROUND_UP(24, Alignment));
+		CMD(VerifyNumBlocks, 4);
+		CMD(VerifyBlockCapacities, { ROUND_UP(40,Alignment), ROUND_UP(15,Alignment), ROUND_UP(128,Alignment), ROUND_UP(24,Alignment) });
+		CMD(VerifyBlockCurrentSizes, { 40, 15, 128, 24 });
 
 }
 

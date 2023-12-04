@@ -166,6 +166,8 @@ BasicHeap::~BasicHeap()
 
 void* BasicHeap::Malloc(size_t size)
 {
+	std::lock_guard<std::mutex> lock(Mtx);
+
 	//BasicHeapBlockHeader* onBlock = BlocksListHead;
 	size_t requiredSizeInBytes = ROUND_UP(size, Alignment);
 	void* returnVal = nullptr;
@@ -199,8 +201,11 @@ void* BasicHeap::Malloc(size_t size)
 
 void* BasicHeap::Realloc(void* ptr, size_t newSize)
 {
+	std::lock_guard<std::mutex> lock(Mtx);
+
 	BasicHeapBlockHeader* block = FindMemoryBlockFromPtr(ptr);
 	assert(block);
+	assert(!block->bDataIsFree);
 	size_t freeSpaceInBlock = block->Capacity - block->CurrentSize;
 	
 	if (!block->Next)
@@ -236,6 +241,8 @@ void* BasicHeap::Realloc(void* ptr, size_t newSize)
 
 void BasicHeap::Free(void* ptr)
 {
+	std::lock_guard<std::mutex> lock(Mtx);
+
 	BasicHeapBlockHeader* block = FindMemoryBlockFromPtr(ptr);
 	assert(block, "pointer not found in heap " + std::string(this));
 	Free(block);

@@ -1,21 +1,11 @@
 #pragma once
-#include <stdint.h>
 #include <cstdlib>
 #include <string>
+#include <mutex>
+#include "CommonTypedefs.h"
 #include "Core.h"
+#include "IAllocator.h"
 
-typedef uint64_t u64;
-typedef uint32_t u32;
-typedef uint16_t u16;
-typedef uint8_t u8;
-
-typedef int8_t i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
-
-typedef float f32;
-typedef double f64;
 
 #define BasicAlloc(numBytes) malloc(numBytes)
 #define BasicFree(ptr) free(ptr)
@@ -45,14 +35,15 @@ struct APP_API BasicHeapBlockHeader
 };
 
 
-class APP_API BasicHeap {
+class APP_API BasicHeap : public IAllocator{
 	friend class BasicHeapAllocatorTestHarness;
 public:
 	BasicHeap(unsigned int maxSize, const std::string& name);
 	~BasicHeap();
-	void* Malloc(size_t size);
-	void* Realloc(void* ptr, size_t newSize);
-	void Free(void* ptr);
+	virtual void* Malloc(size_t size) override;
+	virtual void* Realloc(void* ptr, size_t newSize) override;
+	virtual void Free(void* ptr) override;
+	
 	void DebugPrintAllBlocks();
 	void DebugPrintOverview();
 private:
@@ -71,4 +62,7 @@ private:
 	u32 NumBlocks;
 	BasicHeapBlockHeader* EndBlock;
 	std::string Name;
+
+	std::mutex Mtx;
+
 };
