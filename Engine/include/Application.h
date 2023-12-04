@@ -38,14 +38,13 @@ private:
 
 
 private:
-	static void FrameBufferSizeChangedCallback(GLFWwindow* window, int width, int height);
 
 private:
 
 	GLFWwindow* Window;
 
-	static int ScreenWidth;
-	static int ScreenHeight;
+	int ScreenWidth;
+	int ScreenHeight;
 
 	static Camera DebugCamera;
 	glm::mat4 ProjectionMatrix;
@@ -80,7 +79,3 @@ private:
 	static glm::ivec3 SelectedVoxel;
 };
 
-void FrameBufferSizeCallback(GLFWwindow* window, int width, int height)
-{
-	glViewport(0, 0, width, height);
-}

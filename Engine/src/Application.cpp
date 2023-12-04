@@ -48,7 +48,8 @@ static void GLAPIENTRY MessageCallback(GLenum source,
 
 Application::Application()
 {
-	
+	ScreenWidth = 640;
+	ScreenHeight = 480;
 	// Setup Window
 	if (!glfwInit())
 		return;
@@ -81,7 +82,6 @@ Application::Application()
 	glfwSetScrollCallback(Window, &ScrollCallback);
 	glDebugMessageCallback(MessageCallback, 0);
 
-	glfwSetFramebufferSizeCallback(Window, FrameBufferSizeChangedCallback);
 
 
 	IMGUI_CHECKVERSION();
@@ -366,6 +366,8 @@ void Application::SetWindowSize(GLFWwindow* window, int width, int height)
 	Far = 5000.0f;
 	// create a perspective projection matrix with a 90 degree field-of-view and widescreen aspect ratio
 	ProjectionMatrix = glm::perspective(FOV, Aspect, Near, Far);
+	ScreenWidth = width;
+	ScreenHeight = height;
 }
 
 //void Application::DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree)
