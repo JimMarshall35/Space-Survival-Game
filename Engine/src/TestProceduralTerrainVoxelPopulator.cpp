@@ -47,7 +47,7 @@ void TestProceduralTerrainVoxelPopulator::PopulateSingleNode(IVoxelDataSource* d
 		{
 			for (int tx = childBL.x; tx < childBL.x + childDims; tx++)
 			{
-				float noiseVal = noise.fractal(7, 2.0*tx * 0.001f,  ty * 0.0001f, 2.0*tz * 0.001f);
+				float noiseVal = noise.fractal(4, 2.0*tx * 0.001f,  ty * 0.0001f, 2.0*tz * 0.001f);
 				float val = (planeHeight + noiseVal * 200.0f) - ty;
 				TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ tx,ty,tz }, std::clamp(-val*10.0f, -127.0f, 127.0f));
 			}
@@ -61,7 +61,14 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 {
 	//OctreeSerialisation::LoadFromFile(dataSrcToWriteTo,"level.vox");
 	//return;
-	auto clock_start = std::chrono::system_clock::now();
+
+	using std::chrono::high_resolution_clock;
+	using std::chrono::duration_cast;
+	using std::chrono::duration;
+	using std::chrono::milliseconds;
+
+	auto t1 = high_resolution_clock::now();
+
 	ITerrainOctreeNode* onNode = dataSrcToWriteTo->GetParentNode();
 	int childDims = onNode->GetSizeInVoxels() / 2;
 	SimplexNoise noise;
@@ -91,7 +98,7 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	else
 	{
 		// if we have <= 8 workers then queue 8 nodes to be generated
-		numDecks = 8*512;
+		numDecks = 8*1024;
 		dataSrcToWriteTo->CreateChildrenForFirstNMipLevels(onNode, 1);
 		for (int i = 0; i < 8; i++)
 		{
@@ -107,16 +114,13 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	{
 		future.wait();
 	}
-	auto clock_now = std::chrono::system_clock::now();
-	float currentTime = float(std::chrono::duration_cast<std::chrono::microseconds> (clock_now - clock_start).count());
-	std::cout << childDims << " voxel cube done in: " << currentTime /1000000 << " S \n";
 
-	std::unordered_set<TerrainOctreeIndex> allThreads;
-	for (int i = 0; i < 8; i++)
-	{
-		cellsWrittenTo[i].erase(0xffffffffffffffff);
-		allThreads.merge(cellsWrittenTo[i]);
-		assert(cellsWrittenTo[i].size() == 0);
-	}
-	OctreeSerialisation::SaveNewlyGeneratedToFile(allThreads, dataSrcToWriteTo, "level.vox");
+	auto t2 = high_resolution_clock::now();
+
+	/* Getting number of milliseconds as an integer. */
+	auto ms_int = duration_cast<milliseconds>(t2 - t1);
+
+	std::cout << "done in " << ms_int.count() << "ms\n";
+
+	//OctreeSerialisation::SaveNewlyGeneratedToFile(allThreads, dataSrcToWriteTo, "level.vox");
 }
