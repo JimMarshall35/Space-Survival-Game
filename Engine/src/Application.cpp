@@ -1,5 +1,6 @@
 #include "Application.h"
 
+#include "ScopeTimer.h"
 #include "Gizmos.h"
 
 #include <iostream>
@@ -44,6 +45,7 @@ static void GLAPIENTRY MessageCallback(GLenum source,
         type, severity, message);
 }
 
+
 Application::Application()
 {
 	
@@ -55,9 +57,6 @@ Application::Application()
 	const char* glsl_version = "#version 130";
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-
-	ScreenWidth = 1280;
-	ScreenHeight = 720;
 
 	// Create Window with graphics context
 	Window = glfwCreateWindow(ScreenWidth, ScreenHeight, "SPACE GAME", NULL, NULL);
@@ -81,6 +80,9 @@ Application::Application()
 	SetWindowSize(Window, ScreenWidth, ScreenHeight);
 	glfwSetScrollCallback(Window, &ScrollCallback);
 	glDebugMessageCallback(MessageCallback, 0);
+
+	glfwSetFramebufferSizeCallback(Window, FrameBufferSizeChangedCallback);
+
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -186,6 +188,23 @@ TerrainMaterial material;
 TerrainLight light;
 bool bRefreshChunks = true;
 
+
+void Application::DrawGrid()
+{
+	int32_t squares = 25;
+	float spacing = 2.f;
+
+	for (int32_t i = -squares; i <= squares; ++i)
+	{
+		glm::vec3 start = glm::vec3(i, 0, squares) * spacing;
+		glm::vec3 end = glm::vec3(i, 0, -squares) * spacing;
+
+		glm::vec4 colour(1.f, 1.f, 1.f, 1.f);
+
+		Gizmos::AddLine(start, end, colour);
+		Gizmos::AddLine(start.zyx, end.zyx, colour);
+	}
+}
 
 void Application::Run()
 {
@@ -393,3 +412,4 @@ void Application::ScrollCallback(GLFWwindow* window, double xoffset, double yoff
 		DebugCamera.MovementSpeed = std::clamp(DebugCamera.MovementSpeed, app->MinCameraSpeed, app->MaxCameraSpeed);
 	}
 }
+

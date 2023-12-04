@@ -178,6 +178,7 @@ void Gizmos::AddBox(const glm::vec3& center,
 	AddLine(vVerts[2], vVerts[6], fillColour, fillColour);
 	AddLine(vVerts[3], vVerts[7], fillColour, fillColour);
 
+
 	if (filled)
 	{
 		// top

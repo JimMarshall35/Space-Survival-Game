@@ -22,6 +22,8 @@ public:
 
 	void FreeCameraMovement(glm::mat4& transform, float deltaTime, float speed, const glm::vec3& worldUp = glm::vec3(0, 0, 1));
 
+	void DrawGrid();
+
 	void Run();
 
 	void SetWindowSize(GLFWwindow* window, int width, int height);
@@ -36,10 +38,14 @@ private:
 
 
 private:
+	static void FrameBufferSizeChangedCallback(GLFWwindow* window, int width, int height);
+
+private:
+
 	GLFWwindow* Window;
 
-	int ScreenWidth;
-	int ScreenHeight;
+	static int ScreenWidth;
+	static int ScreenHeight;
 
 	static Camera DebugCamera;
 	glm::mat4 ProjectionMatrix;
