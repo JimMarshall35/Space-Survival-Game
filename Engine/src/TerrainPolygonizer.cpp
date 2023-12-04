@@ -1068,35 +1068,8 @@ inline u16 ReuseEdgeVertex(i32 n, i32 i, i32 j, CellStorage *const (& deckStorag
 // Listing 10.23
 //#pragma optimize("", off)
 
-int32_t _FP_SquareRoot(int32_t val, int32_t Q) {
-  int32_t sval = 0;
- 
-  //convert Q to even
-  if (Q & 0x01) {
-    Q -= 1;
-    val >>= 1;
-  }
-  //integer square root math
-  for (uint8_t i=0; i<=30; i+=2) {
-    if ((0x40000001>>i) + sval <= val) {  
-      val -= (0x40000001>>i) + sval;     
-      sval = (sval>>1) | (0x40000001>>i);
-    } else {
-      sval = sval>>1;
-    }
-  }
-  if (sval < val) 
-    ++sval;  
-  //this is the square root in Q format
-  sval <<= (Q)/2;
-  //convert the square root to Q15 format
-  if (Q < 15)
-    return(sval<<(15 - Q));
-  else
-    return(sval>>(Q - 15));
-}
 
-#pragma optimize("", off)
+//#pragma optimize("", off)
 typedef signed long fix;
 #define FIXED_POINT_FRACTIONAL_BITS 8
 #define multfix(a,b) (fix)(((((signed long long) a))*(((signed long long) b)) >> 8))
@@ -1107,39 +1080,23 @@ typedef signed long fix;
 #define fix2int(a) ((int))((a >> 8))
 #define fix2float(input) ((float)input / (float)(1 << FIXED_POINT_FRACTIONAL_BITS))
 #define float2fix(input) ((fix)(round(input * (1 << FIXED_POINT_FRACTIONAL_BITS))))
-#define sqrtfix(a) (float2fix(sqrt(fix2float(a))))
+#define sqrtfix(a) (float2fix(sqrt(fix2float(a))))     // apparently this is the fastest (in terms of runtime) way to do a square root on a fixed point number
 
 Integer3D NormalizeFixedPointVector(const Integer3D& inVec)
 {
-	float v1 = 3.0f;
-	float v2 = 1.5f;
-	fix f1 = float2fix(v1);
-	fix f2 = float2fix(v2);
-	fix prod = multfix(f1,f2);
-	float asFloat = fix2float(prod);
-
-	float v3 = 3.0f;
-	float v4 = 1.5;
-	fix f3 = float2fix(v1);
-	fix f4 = float2fix(v2);
-	fix prod2 = divfix(f1,f2);
-	float asFloat2 = fix2float(prod2);
-
+	/* I am not sure this function is actually doing what it should be */
 	fix x2 = multfix(inVec.x, inVec.x);
 	fix y2 = multfix(inVec.y, inVec.y);
 	fix z2 = multfix(inVec.z, inVec.z);
 	fix length = sqrtfix((x2 + y2 + z2));
-	float fLength = fix2float(length);
+
 	Integer3D val =  
 	{
 		length ? divfix(x2,length) : 0,
 		length ? divfix(y2,length) : 0,
 		length ? divfix(z2,length) : 0
 	};
-	/*
-	length = sqrt(x*x, y*y, z*z)
-	
-	*/
+
 	glm::vec3 fp = 
 		{
 			fix2float(val.x),
@@ -1149,7 +1106,7 @@ Integer3D NormalizeFixedPointVector(const Integer3D& inVec)
 	return val;
 }
 
-#pragma optimize("", on)
+//#pragma optimize("", on)
 
 void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStorage *const (& deckStorage)[2], u32 deltaMask, i32& meshVertexCount, i32& meshTriangleCount, TerrainVertexFixedPoint *meshVertexArray, Triangle *meshTriangleArray)
 {
@@ -1401,7 +1358,6 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOc
 		TerrainVertexFixedPoint& fixed = fixedPointVerts[i];
 
 		rVal->Vertices[i].Position = {
-			//     whole number part       +             fraction part
 			fix2float(fixed.Position.x),
 			fix2float(fixed.Position.y),
 			fix2float(fixed.Position.z)
@@ -1410,7 +1366,6 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOc
 		rVal->Vertices[i].Position += blockBottomLeft;
 		rVal->Vertices[i].Normal = 
 		glm::normalize(glm::vec3{
-			//     whole number part     +             fraction part
 			fix2float(fixed.Normal.x),
 			fix2float(fixed.Normal.y),
 			fix2float(fixed.Normal.z)
