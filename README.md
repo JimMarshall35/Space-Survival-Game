@@ -1,4 +1,4 @@
-A template project that comes with glfw, glad, glew, and a DLL project. Not actually an engine I just had to call it something.
+SPACE GAME OOO SPOOKY
 
 REQUIREMENTS
 
