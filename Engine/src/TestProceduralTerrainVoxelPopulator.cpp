@@ -72,8 +72,8 @@ std::unordered_set<TerrainOctreeIndex> TestProceduralTerrainVoxelPopulator::Popu
 
 void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* dataSrcToWriteTo)
 {
-	OctreeSerialisation::LoadFromFile(dataSrcToWriteTo,"level.vox");
-	return;
+	//OctreeSerialisation::LoadFromFile(dataSrcToWriteTo,"level.vox");
+	//return;
 
 	using std::chrono::high_resolution_clock;
 	using std::chrono::duration_cast;
