@@ -22,7 +22,7 @@ public:
 	// Inherited via ITerrainVoxelPopulator
 	virtual void PopulateTerrain(IVoxelDataSource* dataSrcToWriteTo) override;
 private:
-	void PopulateSingleNode(IVoxelDataSource* dataSrcToWriteTo, ITerrainOctreeNode* node, SimplexNoise& noise, std::unordered_set<TerrainOctreeIndex>* output);
+	std::unordered_set<TerrainOctreeIndex> PopulateSingleNode(IVoxelDataSource* dataSrcToWriteTo, ITerrainOctreeNode* node, SimplexNoise& noise);
 private:
 	std::shared_ptr<rdx::thread_pool> ThreadPool;
 };

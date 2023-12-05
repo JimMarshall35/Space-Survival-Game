@@ -24,6 +24,8 @@ namespace OctreeSerialisation
 		ofs.write((char*)&header, sizeof(VoxelFileHeader));
 	}
 
+#pragma optimize("", off)
+
 	void WriteNode(std::ofstream& ofs, TerrainOctreeIndex index, ITerrainOctreeNode* node)
 	{
 		ofs.write((char*)&index, sizeof(TerrainOctreeIndex));
@@ -43,9 +45,11 @@ namespace OctreeSerialisation
 		{
 			ITerrainOctreeNode* node = voxelDataSource->FindNodeFromIndex(index);
 			assert(node->GetMipLevel() == 0);
+			assert(node->GetVoxelData());
 			WriteNode(ofs, index, node);
 		}
 	}
+#pragma optimize("", on)
 
 	void ReadHeader(std::ifstream& ifs, VoxelFileHeader& header)
 	{
@@ -54,6 +58,9 @@ namespace OctreeSerialisation
 
 	void LoadFromFile(IVoxelDataSource* voxelDataSource, const char* path)
 	{
+		// 0x0000000005015200
+		// 0x0000000001700514
+		// 0x0000000004107410
 		std::ifstream ifs(path, std::ios::in | std::ofstream::binary);
 		VoxelFileHeader header;
 		ReadHeader(ifs, header);
@@ -62,16 +69,17 @@ namespace OctreeSerialisation
 			std::cout << "Trying to read a voxel file with an incorrect version\n";
 		}
 
+		std::vector<i8> debug(BASE_CELL_SIZE*BASE_CELL_SIZE*BASE_CELL_SIZE);
 		for (int i = 0; i < header.NumNodes; i++)
 		{
 			TerrainOctreeIndex index;
 			ifs.read((char*)&index, sizeof(TerrainOctreeIndex));
-			ITerrainOctreeNode* node = voxelDataSource->FindNodeFromIndex(index, true);
-			if (node->GetVoxelData() == nullptr)
-			{
-				voxelDataSource->AllocateNodeVoxelData(node);
-			}
-			ifs.read((char*)node->GetVoxelData(), BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE);
+ 			ITerrainOctreeNode* node = voxelDataSource->FindNodeFromIndex(index, true);
+			assert(node);
+			assert(node->GetMipLevel() == 0);
+			voxelDataSource->AllocateNodeVoxelData(node);
+			ifs.read((char*)debug.data(), BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE);
+			memcpy(node->GetVoxelData(), debug.data(), BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE);
 			//printf("hello");
 		}
 	}

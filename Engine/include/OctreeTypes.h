@@ -12,11 +12,19 @@ enum class TerrainChunkMeshBuffer
 	EBO = 1
 };
 
+struct APP_API TerrainChunkTransitionMesh
+{
+	u32 VAO;
+	u32 Buffers[2];
+	u32 IndiciesToDraw;
+};
+
 struct APP_API TerrainChunkMesh
 {
 	u32 VAO;
 	u32 Buffers[2];
 	u32 IndiciesToDraw;
+	TerrainChunkTransitionMesh TransitionMeshes[6];
 	bool bNeedsRegenerating;
 	inline u32 GetVBO() const { return Buffers[(u32)TerrainChunkMeshBuffer::VBO]; }
 	inline u32 GetEBO() const { return Buffers[(u32)TerrainChunkMeshBuffer::EBO]; }

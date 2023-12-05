@@ -6,8 +6,11 @@
 #include "ITerrainOctreeNode.h"
 #include <cmath>
 
-#define TERRAIN_CELL_VERTEX_ARRAY_SIZE 30000 // each worker can output this number of vertices maximum
-#define TERRAIN_CELL_INDEX_ARRAY_SIZE 30000 // each worker can output this number of vertices maximum
+#define TERRAIN_CELL_VERTEX_ARRAY_SIZE 10000 // each worker can output this number of vertices maximum
+#define TERRAIN_CELL_INDEX_ARRAY_SIZE 10000 // each worker can output this number of vertices maximum
+
+#define TERRAIN_CELL_TRANSITION_MESH_VERTEX_ARRAY_SIZE 1000
+#define TERRAIN_CELL_TRANSITION_MESH_INDEX_ARRAY_SIZE 1000
 
 #define TERRAIN_FIXED_FRACTION_SIZE_BITS 8
 #define TERRAIN_FIXED_FRACTION_MAX 0xff
@@ -667,7 +670,7 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 
 typedef i8 Voxel;
 
-// The GetVoxel() function loads a single value from the scalar field at coords (i,j,k).
+
 inline Voxel GetVoxel(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k)
 {
 	return field[TOTAL_DECK_SIZE * (k+POLYGONIZER_NEGATIVE_GUTTER) + TOTAL_CELL_SIZE * (j+POLYGONIZER_NEGATIVE_GUTTER) + (i+POLYGONIZER_NEGATIVE_GUTTER)];
@@ -1108,7 +1111,44 @@ Integer3D NormalizeFixedPointVector(const Integer3D& inVec)
 
 //#pragma optimize("", on)
 
-void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStorage *const (& deckStorage)[2], u32 deltaMask, i32& meshVertexCount, i32& meshTriangleCount, TerrainVertexFixedPoint *meshVertexArray, Triangle *meshTriangleArray)
+void SurfaceShift(u8 currentLOD, Integer3D& minSample, Integer3D& maxSample, IVoxelDataSource* source, i32& d0, i32& d1)
+{
+	if (!currentLOD)
+	{
+		return;
+	}
+	Integer3D midSample = minSample + (minSample + maxSample) / 2;
+	Voxel sample = source->GetVoxelAt(midSample);
+	if (d0 < 0)
+	{
+		if (sample < 0)
+		{
+			minSample = midSample;
+			d0 = sample;
+		}
+		else
+		{
+			maxSample = midSample;
+			d1 = sample;
+		}
+	}
+	else
+	{
+		if (sample < 0)
+		{
+			maxSample = midSample;
+			d1 = sample;
+		}
+		else
+		{
+			minSample = midSample;
+			d0 = sample;
+		}
+	}
+	SurfaceShift(currentLOD -1, minSample, maxSample, source, d0, d1);
+}
+
+void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStorage *const (& deckStorage)[2], u32 deltaMask, i32& meshVertexCount, i32& meshTriangleCount, TerrainVertexFixedPoint *meshVertexArray, Triangle *meshTriangleArray, IVoxelDataSource* source, u8 lod)
 {
 	Voxel		distance[8];
 
@@ -1174,6 +1214,17 @@ void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStor
 			// Calculate interpolation parameter with Equation (10.95).
 			i32 d0 = distance[corner[0]];
 			i32 d1 = distance[corner[1]];
+
+			/*if (glm::length(glm::vec3(position[0])) > glm::length(glm::vec3(position[1])))
+			{
+				SurfaceShift(lod, position[1], position[0], source, d0, d1);
+			}
+			else
+			{
+				SurfaceShift(lod, position[0], position[1], source, d0, d1);
+
+			}*/
+
 			i32 t = (d1 << 8) / (d1 - d0);
 
 			if ((t & 0x00FF) != 0)
@@ -1260,7 +1311,7 @@ void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStor
 
 // Listing 10.24
 
-void ExtractIsosurface(const Voxel *field, i32 n, i32 m, i32 h, i32 *meshVertexCount, i32 *meshTriangleCount, TerrainVertexFixedPoint *meshVertexArray, Triangle *meshTriangleArray, IAllocator* allocator)
+void ExtractIsosurface(const Voxel *field, i32 n, i32 m, i32 h, i32 *meshVertexCount, i32 *meshTriangleCount, TerrainVertexFixedPoint *meshVertexArray, Triangle *meshTriangleArray, IAllocator* allocator, IVoxelDataSource* source, u8 lod)
 {
 	CellStorage* deckStorage[2];
 	// Allocate storage for two decks of history.
@@ -1280,7 +1331,7 @@ void ExtractIsosurface(const Voxel *field, i32 n, i32 m, i32 h, i32 *meshVertexC
 		{
 			for (i32 i = 0; i < n; i++)
 			{
-				ProcessCell(field, n, m, i, j, k, deckStorage, deltaMask, vertexCount, triangleCount, meshVertexArray, meshTriangleArray);
+				ProcessCell(field, n, m, i, j, k, deckStorage, deltaMask, vertexCount, triangleCount, meshVertexArray, meshTriangleArray, source, lod);
 				deltaMask |= 1;  					// Allow reuse in x direction.
 			}
 
@@ -1297,6 +1348,56 @@ void ExtractIsosurface(const Voxel *field, i32 n, i32 m, i32 h, i32 *meshVertexC
 	*meshTriangleCount = triangleCount;
 }
 
+u32 LoadTransitionCellX(i8* field, IVoxelDataSource* source, i32 i, i32 j, i32 k, i8* outDistance, ITerrainOctreeNode* cellToPolygonize, u32 stepSize, const glm::ivec3& bl)
+{
+	glm::ivec3 ijk = {i,j,k};
+	outDistance[0] = outDistance[0x9] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j, k);
+	outDistance[1] = source->GetVoxelAt(ijk + glm::ivec3{0, (stepSize >> 1), 0} + bl);
+	outDistance[2] = outDistance[0xa] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j + 1, k);
+	outDistance[3] = source->GetVoxelAt(ijk + glm::ivec3{0, 0, (stepSize >> 1)} + bl);
+	outDistance[4] = source->GetVoxelAt(ijk + glm::ivec3{0, (stepSize >> 1), (stepSize >> 1)} + bl);
+	outDistance[5] = source->GetVoxelAt(ijk + glm::ivec3{0, stepSize, (stepSize >> 1)} + bl);
+	outDistance[6] = outDistance[0xb] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j, k + 1);
+	outDistance[7] = source->GetVoxelAt(ijk + glm::ivec3{0, (stepSize >> 1), stepSize} + bl);
+	outDistance[8] = outDistance[0xc] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j + 1, k + 1);
+	return 0
+		| ((std::signbit(static_cast<float>(outDistance[0])) << 0) & 0x01)
+		| ((std::signbit(static_cast<float>(outDistance[1])) << 1) & 0x02)
+		| ((std::signbit(static_cast<float>(outDistance[2])) << 2) & 0x02)
+		| ((std::signbit(static_cast<float>(outDistance[3])) << 7) & 0x80)
+		| ((std::signbit(static_cast<float>(outDistance[4])) << 8) & 0x100)
+		| ((std::signbit(static_cast<float>(outDistance[5])) << 3) & 0x08)
+		| ((std::signbit(static_cast<float>(outDistance[6])) << 6) & 0x40)
+		| ((std::signbit(static_cast<float>(outDistance[7])) << 5) & 0x20)
+		| ((std::signbit(static_cast<float>(outDistance[8])) << 4) & 0x10);
+
+}
+
+u32 LoadTransitionCellY(i8* field, IVoxelDataSource* source, i32 i, i32 j, i32 k, i8* outDistance, ITerrainOctreeNode* cellToPolygonize, u32 stepSize, const glm::ivec3& bl)
+{
+	glm::ivec3 ijk = {i,j,k};
+	outDistance[0] = outDistance[0x9] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j, k);
+	outDistance[1] = source->GetVoxelAt(ijk + glm::ivec3{ (stepSize >> 1), 0, 0} + bl);
+	outDistance[2] = outDistance[0xa] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i + 1, j, k);
+	outDistance[3] = source->GetVoxelAt(ijk + glm::ivec3{0, 0, (stepSize >> 1)} + bl);
+	outDistance[4] = source->GetVoxelAt(ijk + glm::ivec3{(stepSize >> 1), 0, (stepSize >> 1)} + bl);
+	outDistance[5] = source->GetVoxelAt(ijk + glm::ivec3{stepSize, 0, (stepSize >> 1)} + bl);
+	outDistance[6] = outDistance[0xb] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j, k + 1);
+	outDistance[7] = source->GetVoxelAt(ijk + glm::ivec3{(stepSize >> 1), 0, stepSize} + bl);
+	outDistance[8] = outDistance[0xc] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i + 1, j, k + 1);
+	return 0
+		| ((std::signbit(static_cast<float>(outDistance[0])) << 0) & 0x01)
+		| ((std::signbit(static_cast<float>(outDistance[1])) << 1) & 0x02)
+		| ((std::signbit(static_cast<float>(outDistance[2])) << 2) & 0x02)
+		| ((std::signbit(static_cast<float>(outDistance[3])) << 7) & 0x80)
+		| ((std::signbit(static_cast<float>(outDistance[4])) << 8) & 0x100)
+		| ((std::signbit(static_cast<float>(outDistance[5])) << 3) & 0x08)
+		| ((std::signbit(static_cast<float>(outDistance[6])) << 6) & 0x40)
+		| ((std::signbit(static_cast<float>(outDistance[7])) << 5) & 0x20)
+		| ((std::signbit(static_cast<float>(outDistance[8])) << 4) & 0x10);
+
+}
+
 
 PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOctreeNode* cellToPolygonize, IVoxelDataSource* source)
 {
@@ -1307,7 +1408,9 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOc
 		sizeof(PolygonizeWorkerThreadData) +
 		TERRAIN_CELL_VERTEX_ARRAY_SIZE * sizeof(TerrainVertex) +
 		TERRAIN_CELL_INDEX_ARRAY_SIZE * sizeof(u32) +
-		TOTAL_CELL_VOLUME_SIZE * sizeof(i8)
+		TOTAL_CELL_VOLUME_SIZE * sizeof(i8) +
+		6 * (TERRAIN_CELL_TRANSITION_MESH_VERTEX_ARRAY_SIZE * sizeof(TerrainVertex)) + 
+		6 * (TERRAIN_CELL_TRANSITION_MESH_INDEX_ARRAY_SIZE * sizeof(u32))
 	); // malloc everything in a single block
 
 	PolygonizeWorkerThreadData* rVal = (PolygonizeWorkerThreadData*)data;
@@ -1344,7 +1447,9 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOc
 		(i32*)&rVal->OutputtedIndices,
 		fixedPointVerts,
 		rVal->Tris,
-		Allocator);
+		Allocator,
+		source,
+		cellToPolygonize->GetMipLevel());
 
 	rVal->OutputtedIndices *= 3;
 

@@ -35,8 +35,19 @@ void OnDeckCompleted()
 	printf("%f percent complete\n", ((float)++decksCompleted / (float)numDecks) * 100.0f);
 }
 
-void TestProceduralTerrainVoxelPopulator::PopulateSingleNode(IVoxelDataSource* dataSrcToWriteTo, ITerrainOctreeNode* node, SimplexNoise& noise, std::unordered_set<TerrainOctreeIndex>* output )
+float GetHeight(const glm::vec3& location)
 {
+	static glm::vec2 center = {1024.0f,1024.0f};
+	glm::vec2 xz = {location.x, location.z};
+	float length = glm::length(xz-center);
+	float f = (length / 1024.0f);
+	float maxHeight = 200.0f;
+	return maxHeight * f;
+}
+
+std::unordered_set<TerrainOctreeIndex> TestProceduralTerrainVoxelPopulator::PopulateSingleNode(IVoxelDataSource* dataSrcToWriteTo, ITerrainOctreeNode* node, SimplexNoise& noise )
+{
+	std::unordered_set<TerrainOctreeIndex> output;
 	glm::ivec3 childBL = node->GetBottomLeftCorner();
 	int childDims = node->GetSizeInVoxels();
 	float planeHeight = 200.0f;
@@ -47,20 +58,22 @@ void TestProceduralTerrainVoxelPopulator::PopulateSingleNode(IVoxelDataSource* d
 		{
 			for (int tx = childBL.x; tx < childBL.x + childDims; tx++)
 			{
-				float noiseVal = noise.fractal(4, 2.0*tx * 0.001f,  ty * 0.0001f, 2.0*tz * 0.001f);
-				float val = (planeHeight + noiseVal * 200.0f) - ty;
+				float noiseVal = noise.fractal(4, tx * 0.001f,  ty * 0.0001f, tz * 0.001f);
+				float val = (planeHeight + noiseVal * GetHeight({tx,ty,tz})) - ty;
 				TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ tx,ty,tz }, std::clamp(-val*10.0f, -127.0f, 127.0f));
+				output.insert(indexSet);
 			}
 		}
 		OnDeckCompleted();
 	}
+	return output;
 }
 
 
 void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* dataSrcToWriteTo)
 {
-	//OctreeSerialisation::LoadFromFile(dataSrcToWriteTo,"level.vox");
-	//return;
+	OctreeSerialisation::LoadFromFile(dataSrcToWriteTo,"level.vox");
+	return;
 
 	using std::chrono::high_resolution_clock;
 	using std::chrono::duration_cast;
@@ -74,23 +87,24 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	SimplexNoise noise;
 	float maxHeight = 1000.0f;
 	float planeHeight = 200.0f;
-	std::vector<std::future<void>> futures;
-	std::unordered_set<TerrainOctreeIndex> cellsWrittenTo[8];
+	std::vector<std::future<std::unordered_set<TerrainOctreeIndex>>> futures;
+	int numThreads = 0;
 	decksCompleted = 0;
 	if (ThreadPool->NumWorkers() > 8)
 	{
 		// if we have more than 8 threads then queue a task for each of the first 2 mip levels,
 		// 64 nodes in total
 		numDecks = 8*8*512;
-		
+		numThreads = 64;
 		dataSrcToWriteTo->CreateChildrenForFirstNMipLevels(onNode, 2);
 		for (int i = 0; i < 8; i++)
 		{
 			for (int j = 0; j < 8; j++)
 			{
+				
 				ITerrainOctreeNode* child = onNode->GetChild(i)->GetChild(j);
 				futures.push_back(ThreadPool->enqueue([&,child,dataSrcToWriteTo]() {
-					PopulateSingleNode(dataSrcToWriteTo, child, noise, &cellsWrittenTo[i]);
+					return PopulateSingleNode(dataSrcToWriteTo, child, noise);
 				}));
 			}
 		}
@@ -99,28 +113,37 @@ void TestProceduralTerrainVoxelPopulator::PopulateTerrain(IVoxelDataSource* data
 	{
 		// if we have <= 8 workers then queue 8 nodes to be generated
 		numDecks = 8*1024;
+		numThreads = 8;
 		dataSrcToWriteTo->CreateChildrenForFirstNMipLevels(onNode, 1);
 		for (int i = 0; i < 8; i++)
 		{
 			ITerrainOctreeNode* child = onNode->GetChild(i);
 			futures.push_back(ThreadPool->enqueue([&,child,dataSrcToWriteTo]() {
-				PopulateSingleNode(dataSrcToWriteTo, child, noise, &cellsWrittenTo[i]);
+				return PopulateSingleNode(dataSrcToWriteTo, child, noise);
 			}));
 		}
 	}
 	
-
+	std::unordered_set<TerrainOctreeIndex> allSet;
 	for (auto& future : futures)
 	{
-		future.wait();
+		std::unordered_set<TerrainOctreeIndex> res = future.get();
+		allSet.merge(res);
+	}
+	auto find = allSet.find(0xffffffffffffffff);
+	if (find != allSet.end())
+	{
+		allSet.erase(find);
 	}
 
+	
 	auto t2 = high_resolution_clock::now();
 
 	/* Getting number of milliseconds as an integer. */
 	auto ms_int = duration_cast<milliseconds>(t2 - t1);
 
 	std::cout << "done in " << ms_int.count() << "ms\n";
+	printf("%i", allSet.find(0xfffffff) == allSet.end());
 
-	//OctreeSerialisation::SaveNewlyGeneratedToFile(allThreads, dataSrcToWriteTo, "level.vox");
+	OctreeSerialisation::SaveNewlyGeneratedToFile(allSet, dataSrcToWriteTo, "level.vox");
 }

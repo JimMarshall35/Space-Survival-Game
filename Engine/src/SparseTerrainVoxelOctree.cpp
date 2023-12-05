@@ -62,7 +62,9 @@ TerrainOctreeIndex SparseTerrainVoxelOctree::SetVoxelAt_Internal(const glm::ivec
 		u8 childIndex = 0xff;
 		onNode = FindChildContainingPoint(onNode, location, childIndex);
 		assert(onNode);
+
 		outIndex |= (TerrainOctreeIndex)(childIndex << (4 * (shiftCounter++)));
+		
 	}
 
 	if (!onNode->VoxelData)
@@ -182,11 +184,14 @@ size_t SparseTerrainVoxelOctree::GetSize() const
 	return ParentNode.SizeInVoxels;
 }
 
+#pragma optimize("", off)
 ITerrainOctreeNode* SparseTerrainVoxelOctree::FindNodeFromIndex(TerrainOctreeIndex index, bool createIfDoesntExist/* = false*/)
 {
 	SparseTerrainOctreeNode* onNode = &ParentNode;
+	onNode->Mesh.bNeedsRegenerating = true;
 	for (u32 i = 0; i < ParentNode.MipLevel; i++)
 	{
+		onNode->Mesh.bNeedsRegenerating = true;
 		u32 thisIndex = (index >> (4 * i)) & 0x0f;
 		
 		if (createIfDoesntExist)
@@ -202,8 +207,11 @@ ITerrainOctreeNode* SparseTerrainVoxelOctree::FindNodeFromIndex(TerrainOctreeInd
 				onNode->BottomLeftCorner.y + y * childDims,
 				onNode->BottomLeftCorner.z + z * childDims
 			};
-			onNode->Children[thisIndex] = IAllocator::New<SparseTerrainOctreeNode>(Allocator);
-			new(onNode->Children[thisIndex])SparseTerrainOctreeNode(childMipLevel, childBL, childDims);
+			if (!(onNode->Children[thisIndex]))
+			{
+				onNode->Children[thisIndex] = IAllocator::New<SparseTerrainOctreeNode>(Allocator);
+				new(onNode->Children[thisIndex])SparseTerrainOctreeNode(childMipLevel, childBL, childDims);
+			}
 			onNode = onNode->Children[thisIndex];
 		}
 		else
@@ -215,6 +223,7 @@ ITerrainOctreeNode* SparseTerrainVoxelOctree::FindNodeFromIndex(TerrainOctreeInd
 	return onNode;
 }
 
+#pragma optimize("", on)
 
 void SparseTerrainVoxelOctree::GetChunksToRender(const Camera& camera, float aspect, float fovY, float zNear, float zFar, std::vector<ITerrainOctreeNode*>& outNodesToRender)
 {
@@ -256,7 +265,7 @@ SparseTerrainVoxelOctree::SparseTerrainOctreeNode* SparseTerrainVoxelOctree::Fin
 		{
 			for (i32 x = 0; x < 2; x++)
 			{
-				i32 i = x + (2 * y) + (4 * z);
+				i32 i = x | (y << 1) | (z << 2);
 
 				glm::ivec3& childBL =
 					glm::ivec3{
@@ -272,6 +281,7 @@ SparseTerrainVoxelOctree::SparseTerrainOctreeNode* SparseTerrainVoxelOctree::Fin
 						new(onNode->Children[i])SparseTerrainOctreeNode(childMipLevel, childBL, childDims);
 					}
 					outChildIndex = i;
+
 					return onNode->Children[i];
 				}
 			}

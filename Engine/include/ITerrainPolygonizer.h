@@ -30,6 +30,14 @@ struct APP_API TerrainVertexFixedPoint
 	TerrainNormalFixed Normal;
 };
 
+struct APP_API TerrainTransitionMeshGeometry
+{
+	u32* Indices;
+	TerrainVertex* Vertices;
+	u32 OutputtedVertices;
+	u32 OutputtedIndices;
+};
+
 struct APP_API PolygonizeWorkerThreadData
 {
 	TerrainVertex* Vertices;
@@ -43,6 +51,7 @@ struct APP_API PolygonizeWorkerThreadData
 	i8* VoxelData;
 	ITerrainOctreeNode* Node;
 	IAllocator* MyAllocator;
+	TerrainTransitionMeshGeometry TransitionMeshes[6];
 	void* GetPtrToDeallocate() { return this; } // we allocate all data, positions, normals, ect in one big block starting with the PolygonizeWorkerThreadData itself
 };
 
