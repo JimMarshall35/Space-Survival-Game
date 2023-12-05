@@ -19,6 +19,8 @@
 #include "ThreadPool.h"
 #include <memory>
 
+#include "tinyxml2.h"
+
 bool Application::bWantMouseInput;
 bool Application::bWantKeyboardInput;
 bool Application::bWireframeMode = true;
@@ -120,8 +122,6 @@ Application::~Application()
 	glfwDestroyWindow(Window);
 	glfwTerminate();
 }
-
-
 
 void Application::ProcessInput(GLFWwindow* window, float delta)
 {
@@ -368,6 +368,79 @@ void Application::SetWindowSize(GLFWwindow* window, int width, int height)
 	ProjectionMatrix = glm::perspective(FOV, Aspect, Near, Far);
 	ScreenWidth = width;
 	ScreenHeight = height;
+}
+
+bool Application::LoadScene()
+{
+	using namespace tinyxml2;
+
+	XMLDocument doc;
+	XMLError err = doc.LoadFile("TestDoc.xml");
+	if (err != tinyxml2::XML_SUCCESS)
+	{
+		return false;
+	}
+
+	if (XMLElement* root = doc.RootElement())
+	{
+		if (XMLElement* objectList = root->FirstChildElement("ObjectList"))
+		{
+			XMLElement* object = objectList->FirstChildElement("Object");
+			while (object)
+			{
+				const char* s = object->Attribute("Type");
+
+				object = objectList->NextSiblingElement("ObjectList");
+			}
+		}
+	}
+
+	return false;
+}
+
+void Application::RunScene()
+{
+	if (!LoadScene())
+	{
+		return;
+	}
+
+	material.AmbientStrength = 0.2;
+	material.DiffuseStrength = 0.5;
+	material.Colour = { 0.0, 1.0, 0.0 };
+	material.Shinyness = 8;
+	material.SpecularStrength = 0.2;
+
+	light.LightColor = { 1.0,1.0,1.0 };
+	light.LightPosition = { 1024, 1024, 2048 };
+	
+	ImGuiIO& io = ImGui::GetIO();
+
+	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+	while (!glfwWindowShouldClose(Window))
+	{
+		bWantMouseInput = io.WantCaptureMouse;
+		bWantKeyboardInput = io.WantCaptureKeyboard;
+
+		glfwPollEvents();
+		//FreeCameraMovement(DebugC, 0.0024, 300);
+		ProcessInput(Window, 0.0024);
+
+		glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		Gizmos::Clear();
+
+		Gizmos::AddBox(
+			glm::vec3(CubeX, CubeY, CubeZ),
+			glm::vec3(1, 1, 1),
+			true
+		);
+
+		DrawGrid();
+		Gizmos::Draw(DebugCamera.GetViewMatrix(), ProjectionMatrix);
+
+		glfwSwapBuffers(Window);
+	}
 }
 
 //void Application::DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree)

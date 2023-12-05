@@ -15,3 +15,5 @@ target_include_directories(ImGui
 	PUBLIC "imgui"
 	PUBLIC "glfw/include"
 	)
+
+add_subdirectory(tinyxml2)

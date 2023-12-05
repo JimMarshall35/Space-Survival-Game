@@ -16,10 +16,18 @@ target_include_directories(Engine
 	PUBLIC "../vendor/imgui"
 	PUBLIC "../vendor/imgui/backends"
 	PUBLIC "../vendor/glm/glm"
+	PUBLIC "../vendor/tinyxml2"
 	)
 target_link_libraries(Engine
 	PRIVATE opengl32
 	PRIVATE glad
 	PRIVATE glfw
 	PRIVATE ImGui
+	PRIVATE tinyxml2
+)
+
+add_custom_command(TARGET Engine POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE_DIR:Engine>/Engine.dll ${Editor_SOURCE_DIR}/bin/$<CONFIGURATION>
+	COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE_DIR:Engine>/Engine.dll ${Game_SOURCE_DIR}/bin/$<CONFIGURATION>
+	COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE_DIR:Engine>/Engine.dll ${AllocatorTest_SOURCE_DIR}/bin/$<CONFIGURATION>
 )

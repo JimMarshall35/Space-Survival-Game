@@ -24,8 +24,3 @@ target_link_libraries(Game
 	PRIVATE glfw
 	PRIVATE ImGui
 )
-
-add_custom_command(TARGET Game POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy
-	$<TARGET_FILE_DIR:Engine>/Engine.dll $<TARGET_FILE_DIR:Game>
-)

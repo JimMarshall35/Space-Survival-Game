@@ -24,8 +24,3 @@ target_link_libraries(Editor
 	PRIVATE glfw
 	PRIVATE ImGui
 )
-
-add_custom_command(TARGET Editor POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy
-	$<TARGET_FILE_DIR:Engine>/Engine.dll $<TARGET_FILE_DIR:Editor>
-)

@@ -13,8 +13,7 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 add_compile_definitions(GLM_FORCE_SWIZZLE GLM_FORCE_RADIANS GLM_ENABLE_EXPERIMENTAL)
 
 add_subdirectory(vendor)
-add_subdirectory(Engine)
 add_subdirectory(Game)
 add_subdirectory(AllocatorTest)
 add_subdirectory(Editor)
-
+add_subdirectory(Engine)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core.h"
+
 #include <vector>
 #include <map>
 
@@ -10,20 +12,18 @@ enum COMPONENT_TYPE;
 
 typedef std::map<const unsigned int, Object*> OBJECT_MAP;
 
-enum ObjectType
-{
-	Default,
-	MovableCamera,
-	RotatingMonkey
-};
-
-class Object
+class APP_API Object
 {
 public:
 	Object(Object* _parent = nullptr);
 	~Object();
 
-	inline static ObjectType GetObjectType() { return ObjectType::Default; }
+	enum Type
+	{
+		ABSTRACT,
+	};
+
+	inline virtual Type GetObjectType() { return Type::ABSTRACT; }
 
 	virtual void Update(const float& _deltaTime);
 	virtual void Render();

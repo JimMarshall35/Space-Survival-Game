@@ -2,11 +2,13 @@
 
 #include "Core.h"
 
+#include "Camera.h"
+#include "Objects/Object.h"
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm.hpp>
 #include <vector>
-#include "Camera.h"
 
 class GLFWwindow;
 class DebugVisualizerTerrainOctree;
@@ -28,6 +30,11 @@ public:
 
 	void SetWindowSize(GLFWwindow* window, int width, int height);
 
+	bool LoadScene();
+	void RunScene();
+
+	struct Scene;
+
 private:
 	//void DebugCaptureVisibleTerrainNodes(DebugVisualizerTerrainOctree& terrainOctree);
 	static void ProcessInput(GLFWwindow* window, float delta);
@@ -36,10 +43,8 @@ private:
 	static void ImGuiPrintSelectedVoxelInfo(SparseTerrainVoxelOctree& octree);
 	static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
-
 private:
-
-private:
+	std::vector<Scene> LoadedScenes;
 
 	GLFWwindow* Window;
 
@@ -79,3 +84,7 @@ private:
 	static glm::ivec3 SelectedVoxel;
 };
 
+struct Application::Scene
+{
+	std::vector<Object> ObjectArray;
+};

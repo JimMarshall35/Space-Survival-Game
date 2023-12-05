@@ -10,3 +10,6 @@
 [submodule "vendor/googletest"]
 	path = vendor/googletest
 	url = https://github.com/google/googletest
+[submodule "vendor/tinyxml2"]
+	path = vendor/tinyxml2
+	url = https://github.com/leethomason/tinyxml2
