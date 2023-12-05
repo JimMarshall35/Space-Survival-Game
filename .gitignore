@@ -50,3 +50,6 @@ x86/
 enc_temp_folder
 CMakeFiles
 out/
+
+# Game data (at the moment these files are too big for github and so must be generated and kept locally)
+*.vox

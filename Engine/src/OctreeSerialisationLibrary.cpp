@@ -58,9 +58,6 @@ namespace OctreeSerialisation
 
 	void LoadFromFile(IVoxelDataSource* voxelDataSource, const char* path)
 	{
-		// 0x0000000005015200
-		// 0x0000000001700514
-		// 0x0000000004107410
 		std::ifstream ifs(path, std::ios::in | std::ofstream::binary);
 		VoxelFileHeader header;
 		ReadHeader(ifs, header);
@@ -80,7 +77,6 @@ namespace OctreeSerialisation
 			voxelDataSource->AllocateNodeVoxelData(node);
 			ifs.read((char*)debug.data(), BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE);
 			memcpy(node->GetVoxelData(), debug.data(), BASE_CELL_SIZE * BASE_CELL_SIZE * BASE_CELL_SIZE);
-			//printf("hello");
 		}
 	}
 }
