@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 set(CMAKE_SUPPRESS_REGENERATION true)
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Game)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Editor)
 cmake_policy(SET CMP0091 NEW)
 
 project(Space-Survival-Game)
