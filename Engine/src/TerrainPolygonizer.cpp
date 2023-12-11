@@ -671,22 +671,22 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSync(ITerrainOctre
 typedef i8 Voxel;
 
 
-inline Voxel GetVoxel(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k)
+inline Voxel GetVoxel(IVoxelDataSource* source, i32 i, i32 j, i32 k)
 {
-	return field[TOTAL_DECK_SIZE * (k+POLYGONIZER_NEGATIVE_GUTTER) + TOTAL_CELL_SIZE * (j+POLYGONIZER_NEGATIVE_GUTTER) + (i+POLYGONIZER_NEGATIVE_GUTTER)];
+	return source->GetVoxelAt({i,j,k});//field[TOTAL_DECK_SIZE * (k+POLYGONIZER_NEGATIVE_GUTTER) + TOTAL_CELL_SIZE * (j+POLYGONIZER_NEGATIVE_GUTTER) + (i+POLYGONIZER_NEGATIVE_GUTTER)];
 	//return (field[(k * m + j) * n + i]);
 }
 
-u32 LoadCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, Voxel *distance)
+u32 LoadCell(IVoxelDataSource* source, int stepSize, i32 i, i32 j, i32 k, Voxel *distance)
 {
-	distance[0] = GetVoxel(field, n, m, i, j, k);
-	distance[1] = GetVoxel(field, n, m, i + 1, j, k);
-	distance[2] = GetVoxel(field, n, m, i, j + 1, k);
-	distance[3] = GetVoxel(field, n, m, i + 1, j + 1, k);
-	distance[4] = GetVoxel(field, n, m, i, j, k + 1);
-	distance[5] = GetVoxel(field, n, m, i + 1, j, k + 1);
-	distance[6] = GetVoxel(field, n, m, i, j + 1, k + 1);
-	distance[7] = GetVoxel(field, n, m, i + 1, j + 1, k + 1);
+	distance[0] = source->GetVoxelAt({i,j,k});//GetVoxel(field, n, m, i, j, k);
+	distance[1] = source->GetVoxelAt({i+stepSize,j,         k});//GetVoxel(field, n, m, i + 1, j, k);
+	distance[2] = source->GetVoxelAt({i,         j+stepSize,k});//GetVoxel(field, n, m, i, j + 1, k);
+	distance[3] = source->GetVoxelAt({i+stepSize,j+stepSize,k});//GetVoxel(field, n, m, i + 1, j + 1, k);
+	distance[4] = source->GetVoxelAt({i,         j,         k+stepSize});//GetVoxel(field, n, m, i, j, k + 1);
+	distance[5] = source->GetVoxelAt({i+stepSize,j,         k+stepSize});//GetVoxel(field, n, m, i + 1, j, k + 1);
+	distance[6] = source->GetVoxelAt({i,         j+stepSize,k+stepSize});//GetVoxel(field, n, m, i, j + 1, k + 1);
+	distance[7] = source->GetVoxelAt({i+stepSize,j+stepSize,k+stepSize});//GetVoxel(field, n, m, i + 1, j + 1, k + 1);
 
 	// Concatenate sign bits of the voxel values to form the case index for the cell.
 	return (((distance[0] >> 7) & 0x01) | ((distance[1] >> 6) & 0x02)
@@ -1021,6 +1021,14 @@ struct CellStorage
 	u16		edge[9];
 };
 
+struct TransitionCellStorage
+{
+	u16		corner[7];
+	u16		edge[9];
+	u16 reuseVertex[10];
+};
+
+
 struct Triangle
 {
 	u32		vertexIndex[3];
@@ -1117,7 +1125,7 @@ void SurfaceShift(u8 currentLOD, Integer3D& minSample, Integer3D& maxSample, IVo
 	{
 		return;
 	}
-	Integer3D midSample = minSample + (minSample + maxSample) / 2;
+	Integer3D midSample = ((minSample + maxSample) / 2);
 	Voxel sample = source->GetVoxelAt(midSample);
 	if (d0 < 0)
 	{
@@ -1148,7 +1156,19 @@ void SurfaceShift(u8 currentLOD, Integer3D& minSample, Integer3D& maxSample, IVo
 	SurfaceShift(currentLOD -1, minSample, maxSample, source, d0, d1);
 }
 
-void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStorage *const (& deckStorage)[2], u32 deltaMask, i32& meshVertexCount, i32& meshTriangleCount, TerrainVertexFixedPoint *meshVertexArray, Triangle *meshTriangleArray, IVoxelDataSource* source, u8 lod)
+void ProcessCell(
+	const Voxel* field,
+	i32 n, i32 m, i32 i, i32 j, i32 k,
+	CellStorage* const (& deckStorage)[2],
+	u32 deltaMask,
+	i32& meshVertexCount,
+	i32& meshTriangleCount,
+	TerrainVertexFixedPoint* meshVertexArray,
+	Triangle* meshTriangleArray,
+	IVoxelDataSource* source,
+	u8 lod,
+	glm::ivec3& bottomLeft,
+	int stepSize)
 {
 	Voxel		distance[8];
 
@@ -1158,7 +1178,7 @@ void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStor
 	for (i32 a = 0; a < 7; a++) cellStorage->corner[a] = 0xFFFF;
 
 	// Call LoadCell() to populate the distance array and get case index.
-	u32 caseIndex = LoadCell(field, n, m, i, j, k, distance);
+	u32 caseIndex = LoadCell(source, stepSize, bottomLeft.x + i*stepSize, bottomLeft.y + j*stepSize, bottomLeft.z+k*stepSize, distance);
 
 	// Look up the equivalence class index and use it to look up
 	// geometric data for this cell. No geometry if case is 0 or 255.
@@ -1192,43 +1212,40 @@ void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStor
 			corner[1] = (vcode >> 3) & 0x07;
 
 			// Construct integer coordinates of edge's endpoints.
-			position[0].x = i + (corner[0] & 1);
-			position[0].y = j + ((corner[0] >> 1) & 1);
-			position[0].z = k + ((corner[0] >> 2) & 1);
-			position[1].x = i + (corner[1] & 1);
-			position[1].y = j + ((corner[1] >> 1) & 1);
-			position[1].z = k + ((corner[1] >> 2) & 1);
+			position[0].x = bottomLeft.x +  ((i + (corner[0] & 1)) * stepSize);
+			position[0].y = bottomLeft.y + ((j + ((corner[0] >> 1) & 1)) * stepSize);
+			position[0].z = bottomLeft.z + ((k + ((corner[0] >> 2) & 1)) * stepSize);
+			position[1].x = bottomLeft.x + ((i + (corner[1] & 1)) * stepSize);
+			position[1].y = bottomLeft.y + ((j + ((corner[1] >> 1) & 1)) * stepSize);
+			position[1].z = bottomLeft.z + ((k + ((corner[1] >> 2) & 1)) * stepSize);
 
-			normal[0].x = int2fix(GetVoxel(field, n, m, position[0].x-1, position[0].y, position[0].z) - GetVoxel(field, n, m, position[0].x+1, position[0].y, position[0].z));
-			normal[0].y = int2fix(GetVoxel(field, n, m, position[0].x, position[0].y-1, position[0].z) - GetVoxel(field, n, m, position[0].x, position[0].y+1, position[0].z));
-			normal[0].z = int2fix(GetVoxel(field, n, m, position[0].x, position[0].y, position[0].z-1) - GetVoxel(field, n, m, position[0].x, position[0].y, position[0].z+1));
-
-			normal[1].x = int2fix(GetVoxel(field, n, m, position[1].x-1, position[1].y, position[1].z) - GetVoxel(field, n, m, position[1].x+1, position[1].y, position[1].z));
-			normal[1].y = int2fix(GetVoxel(field, n, m, position[1].x, position[1].y-1, position[1].z) - GetVoxel(field, n, m, position[1].x, position[1].y+1, position[1].z));
-			normal[1].z = int2fix(GetVoxel(field, n, m, position[1].x, position[1].y, position[1].z-1) - GetVoxel(field, n, m, position[1].x, position[1].y, position[1].z+1));
-
-			normal[0] = NormalizeFixedPointVector(normal[0]);
-			normal[1] = NormalizeFixedPointVector(normal[1]);
+			
 
 
 			// Calculate interpolation parameter with Equation (10.95).
 			i32 d0 = distance[corner[0]];
 			i32 d1 = distance[corner[1]];
 
-			/*if (glm::length(glm::vec3(position[0])) > glm::length(glm::vec3(position[1])))
-			{
-				SurfaceShift(lod, position[1], position[0], source, d0, d1);
-			}
-			else
-			{
-				SurfaceShift(lod, position[0], position[1], source, d0, d1);
 
-			}*/
+			
+
 
 			i32 t = (d1 << 8) / (d1 - d0);
 
 			if ((t & 0x00FF) != 0)
 			{
+				SurfaceShift(lod, position[0], position[1], source, d0, d1);
+
+				normal[0].x = int2fix(GetVoxel(source, position[0].x-1, position[0].y, position[0].z) - GetVoxel(source, position[0].x+1, position[0].y, position[0].z));
+				normal[0].y = int2fix(GetVoxel(source, position[0].x, position[0].y-1, position[0].z) - GetVoxel(source, position[0].x, position[0].y+1, position[0].z));
+				normal[0].z = int2fix(GetVoxel(source, position[0].x, position[0].y, position[0].z-1) - GetVoxel(source, position[0].x, position[0].y, position[0].z+1));
+
+				normal[1].x = int2fix(GetVoxel(source, position[1].x-1, position[1].y, position[1].z) - GetVoxel(source, position[1].x+1, position[1].y, position[1].z));
+				normal[1].y = int2fix(GetVoxel(source, position[1].x, position[1].y-1, position[1].z) - GetVoxel(source, position[1].x, position[1].y+1, position[1].z));
+				normal[1].z = int2fix(GetVoxel(source, position[1].x, position[1].y, position[1].z-1) - GetVoxel(source, position[1].x, position[1].y, position[1].z+1));
+
+				normal[0] = NormalizeFixedPointVector(normal[0]);
+				normal[1] = NormalizeFixedPointVector(normal[1]);
 				// Vertex falls in the interior of an edge.
 				// Extract edge index and delta code from vertex code.
 				u16 edgeIndex = (vcode >> 8) & 0x0F;
@@ -1258,6 +1275,16 @@ void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStor
 			}
 			else
 			{
+				normal[0].x = int2fix(GetVoxel(source, position[0].x-1, position[0].y, position[0].z) - GetVoxel(source, position[0].x+1, position[0].y, position[0].z));
+				normal[0].y = int2fix(GetVoxel(source, position[0].x, position[0].y-1, position[0].z) - GetVoxel(source, position[0].x, position[0].y+1, position[0].z));
+				normal[0].z = int2fix(GetVoxel(source, position[0].x, position[0].y, position[0].z-1) - GetVoxel(source, position[0].x, position[0].y, position[0].z+1));
+
+				normal[1].x = int2fix(GetVoxel(source, position[1].x-1, position[1].y, position[1].z) - GetVoxel(source, position[1].x+1, position[1].y, position[1].z));
+				normal[1].y = int2fix(GetVoxel(source, position[1].x, position[1].y-1, position[1].z) - GetVoxel(source, position[1].x, position[1].y+1, position[1].z));
+				normal[1].z = int2fix(GetVoxel(source, position[1].x, position[1].y, position[1].z-1) - GetVoxel(source, position[1].x, position[1].y, position[1].z+1));
+
+				normal[0] = NormalizeFixedPointVector(normal[0]);
+				normal[1] = NormalizeFixedPointVector(normal[1]);
 				// Vertex falls exactly at the first corner of the cell if
 				// t == 0, and at the second corner if t == 0x0100.
 				u8 c = (t == 0);
@@ -1311,7 +1338,18 @@ void ProcessCell(const Voxel *field, i32 n, i32 m, i32 i, i32 j, i32 k, CellStor
 
 // Listing 10.24
 
-void ExtractIsosurface(const Voxel *field, i32 n, i32 m, i32 h, i32 *meshVertexCount, i32 *meshTriangleCount, TerrainVertexFixedPoint *meshVertexArray, Triangle *meshTriangleArray, IAllocator* allocator, IVoxelDataSource* source, u8 lod)
+void ExtractIsosurface(
+	const Voxel* field, 
+	i32 n, i32 m, i32 h, 
+	i32* meshVertexCount,
+	i32* meshTriangleCount,
+	TerrainVertexFixedPoint* meshVertexArray,
+	Triangle* meshTriangleArray,
+	IAllocator* allocator,
+	IVoxelDataSource* source,
+	u8 lod,
+	glm::ivec3& bottomLeft,
+	float stepSize)
 {
 	CellStorage* deckStorage[2];
 	// Allocate storage for two decks of history.
@@ -1331,7 +1369,7 @@ void ExtractIsosurface(const Voxel *field, i32 n, i32 m, i32 h, i32 *meshVertexC
 		{
 			for (i32 i = 0; i < n; i++)
 			{
-				ProcessCell(field, n, m, i, j, k, deckStorage, deltaMask, vertexCount, triangleCount, meshVertexArray, meshTriangleArray, source, lod);
+				ProcessCell(field, n, m, i, j, k, deckStorage, deltaMask, vertexCount, triangleCount, meshVertexArray, meshTriangleArray, source, lod, bottomLeft, stepSize);
 				deltaMask |= 1;  					// Allow reuse in x direction.
 			}
 
@@ -1348,18 +1386,19 @@ void ExtractIsosurface(const Voxel *field, i32 n, i32 m, i32 h, i32 *meshVertexC
 	*meshTriangleCount = triangleCount;
 }
 
-u32 LoadTransitionCellX(i8* field, IVoxelDataSource* source, i32 i, i32 j, i32 k, i8* outDistance, ITerrainOctreeNode* cellToPolygonize, u32 stepSize, const glm::ivec3& bl)
+u32 LoadTransitionCellX(const Voxel* field, IVoxelDataSource* source, i32 i, i32 j, i32 k, i8* outDistance, u32 stepSize, const glm::ivec3& bl)
 {
 	glm::ivec3 ijk = {i,j,k};
-	outDistance[0] = outDistance[0x9] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j, k);
+
+	outDistance[0] = outDistance[0x9] = source->GetVoxelAt({i, j, k});
 	outDistance[1] = source->GetVoxelAt(ijk + glm::ivec3{0, (stepSize >> 1), 0} + bl);
-	outDistance[2] = outDistance[0xa] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j + 1, k);
+	outDistance[2] = outDistance[0xa] = source->GetVoxelAt({ i, j + stepSize, k});
 	outDistance[3] = source->GetVoxelAt(ijk + glm::ivec3{0, 0, (stepSize >> 1)} + bl);
 	outDistance[4] = source->GetVoxelAt(ijk + glm::ivec3{0, (stepSize >> 1), (stepSize >> 1)} + bl);
 	outDistance[5] = source->GetVoxelAt(ijk + glm::ivec3{0, stepSize, (stepSize >> 1)} + bl);
-	outDistance[6] = outDistance[0xb] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j, k + 1);
+	outDistance[6] = outDistance[0xb] = source->GetVoxelAt({ i, j, k + stepSize});
 	outDistance[7] = source->GetVoxelAt(ijk + glm::ivec3{0, (stepSize >> 1), stepSize} + bl);
-	outDistance[8] = outDistance[0xc] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j + 1, k + 1);
+	outDistance[8] = outDistance[0xc] = source->GetVoxelAt({ i, j + stepSize, k + stepSize});
 	return 0
 		| ((std::signbit(static_cast<float>(outDistance[0])) << 0) & 0x01)
 		| ((std::signbit(static_cast<float>(outDistance[1])) << 1) & 0x02)
@@ -1370,21 +1409,20 @@ u32 LoadTransitionCellX(i8* field, IVoxelDataSource* source, i32 i, i32 j, i32 k
 		| ((std::signbit(static_cast<float>(outDistance[6])) << 6) & 0x40)
 		| ((std::signbit(static_cast<float>(outDistance[7])) << 5) & 0x20)
 		| ((std::signbit(static_cast<float>(outDistance[8])) << 4) & 0x10);
-
 }
 
-u32 LoadTransitionCellY(i8* field, IVoxelDataSource* source, i32 i, i32 j, i32 k, i8* outDistance, ITerrainOctreeNode* cellToPolygonize, u32 stepSize, const glm::ivec3& bl)
+u32 LoadTransitionCellY(const Voxel* field, IVoxelDataSource* source, i32 i, i32 j, i32 k, i8* outDistance, u32 stepSize, const glm::ivec3& bl)
 {
 	glm::ivec3 ijk = {i,j,k};
-	outDistance[0] = outDistance[0x9] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j, k);
+	outDistance[0] = outDistance[0x9] = source->GetVoxelAt({ i, j, k});
 	outDistance[1] = source->GetVoxelAt(ijk + glm::ivec3{ (stepSize >> 1), 0, 0} + bl);
-	outDistance[2] = outDistance[0xa] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i + 1, j, k);
+	outDistance[2] = outDistance[0xa] = source->GetVoxelAt({i + stepSize, j, k});
 	outDistance[3] = source->GetVoxelAt(ijk + glm::ivec3{0, 0, (stepSize >> 1)} + bl);
 	outDistance[4] = source->GetVoxelAt(ijk + glm::ivec3{(stepSize >> 1), 0, (stepSize >> 1)} + bl);
 	outDistance[5] = source->GetVoxelAt(ijk + glm::ivec3{stepSize, 0, (stepSize >> 1)} + bl);
-	outDistance[6] = outDistance[0xb] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i, j, k + 1);
+	outDistance[6] = outDistance[0xb] = source->GetVoxelAt({ i, j, k + stepSize});
 	outDistance[7] = source->GetVoxelAt(ijk + glm::ivec3{(stepSize >> 1), 0, stepSize} + bl);
-	outDistance[8] = outDistance[0xc] = GetVoxel(field, BASE_CELL_SIZE, BASE_CELL_SIZE, i + 1, j, k + 1);
+	outDistance[8] = outDistance[0xc] = source->GetVoxelAt({ i + stepSize, j, k + stepSize});
 	return 0
 		| ((std::signbit(static_cast<float>(outDistance[0])) << 0) & 0x01)
 		| ((std::signbit(static_cast<float>(outDistance[1])) << 1) & 0x02)
@@ -1395,9 +1433,78 @@ u32 LoadTransitionCellY(i8* field, IVoxelDataSource* source, i32 i, i32 j, i32 k
 		| ((std::signbit(static_cast<float>(outDistance[6])) << 6) & 0x40)
 		| ((std::signbit(static_cast<float>(outDistance[7])) << 5) & 0x20)
 		| ((std::signbit(static_cast<float>(outDistance[8])) << 4) & 0x10);
-
 }
 
+void ProcessTransitionCell(
+	const Voxel* field,
+	i32 n, i32 m, i32 i, i32 j, i32 k,
+	TransitionCellStorage* const (&rowStorage)[2],
+	u32 deltaMask,
+	i32& meshVertexCount,
+	i32& meshTriangleCount,
+	TerrainVertexFixedPoint* meshVertexArray,
+	Triangle* meshTriangleArray,
+	IVoxelDataSource* source,
+	u8 lod,
+	glm::ivec3& bottomLeft,
+	int stepSize,
+	i32 axis)
+{
+	Voxel distance[13];
+	TransitionCellStorage* cellStorage = axis == 0 ? &rowStorage[0][j] : &rowStorage[0][i];
+	for (int i = 0; i < 10; i++)
+	{
+		cellStorage->reuseVertex[i] = 0xffff;
+	}
+	u32 caseIndex = axis == 0 ? LoadTransitionCellX(field, source, i, j, k, distance, stepSize, bottomLeft) : LoadTransitionCellY(field, source, i, j, k, distance, stepSize, bottomLeft);
+}
+
+
+void ExtractTransitionCellIsosurface(
+	const Voxel* field, 
+	i32 n, i32 m, i32 h, 
+	i32* meshVertexCount,
+	i32* meshTriangleCount,
+	TerrainVertexFixedPoint* meshVertexArray,
+	Triangle* meshTriangleArray,
+	IAllocator* allocator,
+	IVoxelDataSource* source,
+	u8 lod,
+	glm::ivec3& bottomLeft,
+	float stepSize
+)
+{
+	TransitionCellStorage* rowStorage[2];
+	// Allocate storage for two decks of history.
+	TransitionCellStorage* precedingCellStorage = IAllocator::NewArray<TransitionCellStorage>(allocator, BASE_CELL_SIZE * 2);
+	u16 deltaMask = 0;
+	for (int k = 0; k < BASE_CELL_SIZE; ++k)
+	{
+		for (int j = 0; j < BASE_CELL_SIZE; ++j)
+		{
+			ProcessTransitionCell(
+				field,
+				n, m, 0, j, k,
+				rowStorage,
+				deltaMask,
+				*meshVertexCount,
+				*meshTriangleCount,
+				meshVertexArray,
+				meshTriangleArray,
+				source,
+				lod,
+				bottomLeft,
+				stepSize,1);
+			deltaMask |= 1;
+		}
+		deltaMask = 2;
+		rowStorage[1] = rowStorage[0];
+	}
+
+	TransitionCellStorage* storageBegin = precedingCellStorage;
+
+
+}
 
 PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOctreeNode* cellToPolygonize, IVoxelDataSource* source)
 {
@@ -1439,6 +1546,10 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOc
 
 	source->GetVoxelsForNode(cellToPolygonize, rVal->VoxelData);
 
+	glm::ivec3 blockBottomLeft = cellToPolygonize->GetBottomLeftCorner();
+	float cellSize = cellToPolygonize->GetSizeInVoxels();
+	float stepSize = cellSize / BASE_CELL_SIZE;
+
 	ExtractIsosurface(rVal->VoxelData, 
 		BASE_CELL_SIZE,
 		BASE_CELL_SIZE,
@@ -1449,13 +1560,13 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOc
 		rVal->Tris,
 		Allocator,
 		source,
-		cellToPolygonize->GetMipLevel());
+		cellToPolygonize->GetMipLevel(),
+		blockBottomLeft,
+		stepSize);
 
 	rVal->OutputtedIndices *= 3;
 
-	glm::ivec3 blockBottomLeft = cellToPolygonize->GetBottomLeftCorner();
-	float cellSize = cellToPolygonize->GetSizeInVoxels();
-	float stepSize = cellSize / BASE_CELL_SIZE;
+	
 
 	// convert from fixed point to floating point, transforming to actual position and scale
 	for (int i = 0; i < rVal->OutputtedVertices; i++)
@@ -1467,8 +1578,8 @@ PolygonizeWorkerThreadData* TerrainPolygonizer::PolygonizeCellSyncMMC(ITerrainOc
 			fix2float(fixed.Position.y),
 			fix2float(fixed.Position.z)
 		};
-		rVal->Vertices[i].Position *= stepSize;
-		rVal->Vertices[i].Position += blockBottomLeft;
+		//rVal->Vertices[i].Position *= stepSize;
+		//rVal->Vertices[i].Position += blockBottomLeft;
 		rVal->Vertices[i].Normal = 
 		glm::normalize(glm::vec3{
 			fix2float(fixed.Normal.x),

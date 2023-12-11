@@ -58,7 +58,7 @@ std::unordered_set<TerrainOctreeIndex> TestProceduralTerrainVoxelPopulator::Popu
 		{
 			for (int tx = childBL.x; tx < childBL.x + childDims; tx++)
 			{
-				float noiseVal = noise.fractal(4, tx * 0.001f,  ty * 0.0001f, tz * 0.001f);
+				float noiseVal = noise.fractal(8, tx * 0.001f,  ty * 0.0001f, tz * 0.001f);
 				float val = (planeHeight + noiseVal * GetHeight({tx,ty,tz})) - ty;
 				TerrainOctreeIndex indexSet = dataSrcToWriteTo->SetVoxelAt({ tx,ty,tz }, std::clamp(-val*10.0f, -127.0f, 127.0f));
 				output.insert(indexSet);
